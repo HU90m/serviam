@@ -1,0 +1,49 @@
+* {
+    margin: 0;
+    padding: 0;
+    font-family: sans-serif;
+}
+body {
+    display: grid;
+    grid-template-columns: 100%;
+    background: #444444;
+    grid-gap: 1rem;
+}
+header {
+    display: grid;
+    background: white;
+    padding: 0.5rem;
+    grid-template-columns: 2rem 1fr;
+}
+#search-image {
+	width: 2rem;
+    height: 2rem;
+}
+#search-input {
+    border: none;
+    padding: 0.25rem;
+}
+main {
+    display: grid;
+    margin-left: 1rem;
+    margin-right: 1rem;
+    grid-template-columns: repeat(auto-fit, 15rem);
+    grid-gap: 0.5rem;
+    grid-auto-rows: auto;
+    text-align: center;
+}
+.film_item {
+    display: flex;
+    flex-flow: column;
+    background: #222222;
+    text-decoration: none;
+    font-weight: bold;
+    color: white;
+}
+.film_item > * {
+	width: 100%;
+	align-self: center
+}
+.film_item > p {
+    padding: 0.5rem;
+}

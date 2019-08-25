@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>{{ .Film.Name }}</title>
+        <link rel="stylesheet" type="text/css" href="files/template_video.css" />
+    </head>
+    <body>
+        <header>
+            <img id="search-image" src="files/search_icon.png">
+            <input id="search-input" type="text" name="" placeholder="What would you like to see?">
+            <p></p>
+         </header>
+         <main>
+            <article>
+                <video controls preload="auto">
+                    <source src="films/{{ .Film.Location }}"
+                            type="{{ .Type }}">
+                    Sorry, your browser doesn't support embedded videos.
+                </video>
+                <p>{{ .Film.Name }}</p>
+            </article>
+        </main>
+    </body>
+    <script type="text/javascript">
+        const search_input = document.getElementById("search-input");
+        const search_image = document.getElementById("search-image");
+
+        search_input.addEventListener('keyup', InputHandler);
+        search_image.addEventListener('click', ImageHandler);
+
+        function InputHandler (key_event) {
+            if (event.keyCode === 13) {
+                location.replace("?q="+search_input.value);
+            }
+        }
+
+        function ImageHandler () {
+            location.replace("?q="+search_input.value);
+        }
+    </script>
+</html>
