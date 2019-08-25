@@ -23,21 +23,3 @@ do
 done
 echo "    ]" >> index.json
 echo "}" >> index.json
-
-#for file in *' '*
-#do
-#  if [ -e "${file// /_}" ]
-#  then
-#    echo Skipping "$file" as the "${file// /_}" already exists
-#    continue
-#  fi
-#
-#  mv "$file" "${file// /_}"
-#done
-#
-#rm ../files/films.txt
-#
-#for file in *
-#do
-#    echo "$file" >> ../files/films.txt
-#done
