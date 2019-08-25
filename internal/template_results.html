@@ -4,7 +4,7 @@
         <meta charset="utf-8">
         <title>Films</title>
         <link rel="stylesheet" type="text/css" href="files/template_results.css" />
-		<link rel="shortcut icon" type="image/png" href="files/icon.png" />
+        <link rel="shortcut icon" type="image/png" href="files/icon.png" />
     </head>
     <body>
         <header>
@@ -14,11 +14,11 @@
          <main>
             {{ range $index, $film := .Films}}
                 <a class="film_item" HREF="watch?v={{ $film.Id }}">
-					{{ if $film.HasPoster }}
+                    {{ if $film.HasPoster }}
                     <img src="films/{{ $film.Poster }}">
-					{{ else }}
+                    {{ else }}
                     <img src="files/empty_poster.jpg">
-					{{ end }}
+                    {{ end }}
                     <p>{{ $film.Name }}</p>
                 </a>
             {{ end }}
@@ -37,7 +37,7 @@
             }
         }
         function ImageHandler () {
-			window.location.replace("?q="+search_input.value);
+            window.location.replace("?q="+search_input.value);
         }
     </script>
 </html>
