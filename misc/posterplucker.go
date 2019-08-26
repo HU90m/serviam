@@ -16,7 +16,7 @@ import (
 // Constants
 //---------------------------------------------------------------------------
 //
-const API_KEY = "4e3dcd715b11740be122b8ff54577aba"
+const API_KEY = ""
 const SEARCH_URL = "https://api.themoviedb.org/3/search/movie"
 const GENRE_URL = "https://api.themoviedb.org/3/genre/movie/list"
 const IMAGE_URL = "https://image.tmdb.org/t/p/original"
