@@ -16,7 +16,7 @@ import (
 // Constants
 //---------------------------------------------------------------------------
 //
-const API_KEY = ""
+const API_KEY = "4e3dcd715b11740be122b8ff54577aba"
 const SEARCH_URL = "https://api.themoviedb.org/3/search/movie"
 const GENRE_URL = "https://api.themoviedb.org/3/genre/movie/list"
 const IMAGE_URL = "https://image.tmdb.org/t/p/original"
@@ -162,7 +162,7 @@ func SearchForFilm(client http.Client, query string) TMDBFilm {
 
 	url := SEARCH_URL + "?api_key=" + API_KEY + "&query=" + query
 
-	fmt.Printf("There are %d results for the query '%s'.\n", query)
+	fmt.Printf("Searching the TMDB data base for '%s'.\n", query)
 	resp, err := client.Get(url)
 	CheckErr(err)
 	defer resp.Body.Close()
@@ -196,7 +196,6 @@ func SearchForFilm(client http.Client, query string) TMDBFilm {
 // Generates all the files for a film.
 //
 func GenerateFiles(client http.Client, tmdb TMDBFilm, file string, genre_map map[int]string) {
-
 	var genres []string
 	for _, genre_id := range tmdb.GenreIds {
 		genres = append(genres, genre_map[genre_id])
@@ -216,7 +215,7 @@ func GenerateFiles(client http.Client, tmdb TMDBFilm, file string, genre_map map
 	// backdrop
 	backdrop_ext := filepath.Ext(tmdb.BackdropPath)
 	backdrop_file := u_name + "__Backdrop" + backdrop_ext
-	DownloadImage(client, tmdb.PosterPath, backdrop_file)
+	DownloadImage(client, tmdb.BackdropPath, backdrop_file)
 
 	// create FilmData structure
 	film := FilmData{
