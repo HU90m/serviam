@@ -43,7 +43,7 @@ type FilmData struct {
 	File         string   `json:"file"`
 	PosterFile   string   `json:"poster_file"`
 	BackdropFile string   `json:"backdrop_file"`
-    HasPoster    bool
+	HasPoster    bool
 }
 
 //---------------------------------------------------------------------------
@@ -106,9 +106,9 @@ func SearchFilms(file_location string, pattern string) FilmCollection {
 
 	for _, film := range all.Films {
 		if strings.Contains(
-            strings.ToLower(film.Title),
-            strings.ToLower(pattern),
-        ){
+			strings.ToLower(film.Title),
+			strings.ToLower(pattern),
+		) {
 			matched.Films = append(matched.Films, film)
 		}
 	}
@@ -128,23 +128,23 @@ func RandomFilms(file_location string, num_results int) FilmCollection {
 	GrabFile(file_location, &all)
 	num_of_films = len(all.Films)
 
-    if num_of_films < num_results {
-        num_results = num_of_films
-    }
+	if num_of_films < num_results {
+		num_results = num_of_films
+	}
 
 	for idx := 0; idx < num_results; idx++ {
-        idx_used := false
+		idx_used := false
 		random_idx = rand.Intn(num_of_films)
-        for _, prior_idx := range prior_idxs {
-            if random_idx == prior_idx {
-                idx_used = true
-                idx--
-            }
-        }
-        if !idx_used {
-            prior_idxs = append(prior_idxs, random_idx)
-            random.Films = append(random.Films, all.Films[random_idx])
-        }
+		for _, prior_idx := range prior_idxs {
+			if random_idx == prior_idx {
+				idx_used = true
+				idx--
+			}
+		}
+		if !idx_used {
+			prior_idxs = append(prior_idxs, random_idx)
+			random.Films = append(random.Films, all.Films[random_idx])
+		}
 	}
 	return random
 }

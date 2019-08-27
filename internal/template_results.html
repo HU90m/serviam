@@ -19,8 +19,9 @@
                     {{ else }}
                     <img src="files/empty_poster.jpg">
                     {{ end }}
-                    <p>{{ $film.Title }}</p>
-                    <p>{{ $film.ReleaseDate }}</p>
+                    <p>{{$film.Title}}</p>
+                    <p>{{$film.ReleaseDate}}</p>
+                    <p>{{$film.VoteAverage}} ({{$film.VoteCount}})</p>
                 </a>
             {{ end }}
         </main>

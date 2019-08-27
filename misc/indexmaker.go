@@ -1,14 +1,13 @@
 package main
 
 import (
-    "log"
-    "fmt"
-    "os"
-    "encoding/json"
-    "path"
-    "io/ioutil"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
+	"path"
 )
-
 
 //---------------------------------------------------------------------------
 // Structures
@@ -37,8 +36,6 @@ type FilmData struct {
 	BackdropFile string   `json:"backdrop_file"`
 }
 
-
-
 //---------------------------------------------------------------------------
 // Functions
 //---------------------------------------------------------------------------
@@ -55,11 +52,11 @@ func CheckErr(e error) {
 // Returns FilmData from a directory.
 //
 func GetFilmData(directory string) FilmData {
-    var err error
-    var film FilmData
+	var err error
+	var film FilmData
 	var raw_file []uint8
 
-    info_file_path := path.Join(directory, "info.json")
+	info_file_path := path.Join(directory, "info.json")
 
 	raw_file, err = ioutil.ReadFile(info_file_path)
 	CheckErr(err)
@@ -67,31 +64,29 @@ func GetFilmData(directory string) FilmData {
 	err = json.Unmarshal(raw_file, &film)
 	CheckErr(err)
 
-    film.File = path.Join(directory, film.File)
-    film.PosterFile = path.Join(directory, film.PosterFile)
-    film.BackdropFile = path.Join(directory, film.BackdropFile)
-    return film
+	film.File = path.Join(directory, film.File)
+	film.PosterFile = path.Join(directory, film.PosterFile)
+	film.BackdropFile = path.Join(directory, film.BackdropFile)
+	return film
 }
-
-
 
 //---------------------------------------------------------------------------
 // Main
 //---------------------------------------------------------------------------
 //
 func main() {
-    const output_location = "index.json"
-    var films []FilmData
+	const output_location = "index.json"
+	var films []FilmData
 	files, err := ioutil.ReadDir("./")
 	CheckErr(err)
 	for _, f := range files {
 		if f.IsDir() {
-            film := GetFilmData(f.Name())
-            films = append(films, film)
-        }
-    }
+			film := GetFilmData(f.Name())
+			films = append(films, film)
+		}
+	}
 
-    film_collection := FilmCollection{Films: films}
+	film_collection := FilmCollection{Films: films}
 
 	output_bytes, err := json.MarshalIndent(film_collection, "", "    ")
 	CheckErr(err)

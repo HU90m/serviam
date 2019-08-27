@@ -166,11 +166,11 @@ func SearchForFilm(client http.Client, api_key string, query string) (TMDBFilm, 
 	body_bytes, err := ioutil.ReadAll(resp.Body)
 	CheckErr(err)
 	err = json.Unmarshal(body_bytes, &tmdb)
-    if err != nil {
-        log.Printf("Error decoding search response: %v\n", err)
-        log.Printf("Body reads:\n%s\n", string(body_bytes))
+	if err != nil {
+		log.Printf("Error decoding search response: %v\n", err)
+		log.Printf("Body reads:\n%s\n", string(body_bytes))
 		return TMDBFilm{}, false
-    }
+	}
 
 	results = tmdb.Results
 	len_results := len(results)

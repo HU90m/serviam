@@ -37,13 +37,10 @@ main {
     flex-flow: column;
     background: #222222;
     text-decoration: none;
-    font-weight: bold;
+    font-weight: normal;
     color: white;
 }
 .film_item > * {
     width: 100%;
     align-self: center
-}
-.film_item > p {
-    padding: 0.5rem;
 }
