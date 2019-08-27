@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -63,6 +64,7 @@ type FilmData struct {
 	ReleaseDate  string   `json:"release_date"`
 	Overview     string   `json:"overview"`
 	Genres       []string `json:"genres"`
+	Collections  []string `json:"genres"`
 	VoteAverage  float64  `json:"vote_average"`
 	VoteCount    int      `json:"vote_count"`
 	File         string   `json:"file"`
@@ -78,7 +80,7 @@ type FilmData struct {
 //
 func CheckErr(e error) {
 	if e != nil {
-		panic(e)
+		log.Fatal(e)
 	}
 }
 
@@ -92,18 +94,17 @@ func ReplaceSpaces(in string) string {
 //
 // Generate JSON file
 //
-func GenerateJSON(film FilmData) {
-	location := "info.json"
-
+func GenerateJSON(film FilmData, path string) {
 	output_bytes, err := json.MarshalIndent(film, "", "    ")
 	CheckErr(err)
-	json_file, err := os.Create(location)
+	json_file, err := os.Create(path)
 	CheckErr(err)
 	defer json_file.Close()
 
 	size, err := json_file.Write(output_bytes)
 	CheckErr(err)
-	fmt.Printf("File '%s' of size %d was created.\n", location, size)
+	fmt.Printf("File '%s' of size %d was created.\n", path, size)
+	fmt.Printf("The file content:\n%s\n", string(output_bytes))
 }
 
 //
@@ -155,7 +156,7 @@ func GetGenreMap(client http.Client) map[int]string {
 //
 // Searches for a film in the TMDB.
 //
-func SearchForFilm(client http.Client, query string) TMDBFilm {
+func SearchForFilm(client http.Client, query string) (TMDBFilm, bool) {
 	var tmdb TMDBSearch
 	var results []TMDBFilm
 	var choice int
@@ -178,6 +179,9 @@ func SearchForFilm(client http.Client, query string) TMDBFilm {
 		len_results,
 		query,
 	)
+	if len_results == 0 {
+		return TMDBFilm{}, false
+	}
 	for idx, _ := range results {
 		idx_r := len_results - idx - 1
 		fmt.Printf(
@@ -188,8 +192,11 @@ func SearchForFilm(client http.Client, query string) TMDBFilm {
 		)
 	}
 	fmt.Scanf("%d", &choice)
+	if choice < 0 || choice >= len_results {
+		return results[0], false
+	}
 	fmt.Printf("The film '%s' has been selected\n", results[choice].Title)
-	return results[choice]
+	return results[choice], true
 }
 
 //
@@ -203,37 +210,48 @@ func GenerateFiles(client http.Client, tmdb TMDBFilm, file string, genre_map map
 
 	extension := filepath.Ext(file)
 	name := tmdb.Title
-	u_name := ReplaceSpaces(name)
-	u_name_ext := u_name + extension
-	id := name + "__" + tmdb.ReleaseDate
+	u_name := ReplaceSpaces(name) // underscored name
+	video_file := u_name + extension
+	id := u_name + "__" + tmdb.ReleaseDate
+
+	// make directory
+	directory := filepath.Join(".", id)
+	err := os.MkdirAll(directory, os.ModePerm)
+	CheckErr(err)
 
 	// poster
 	poster_ext := filepath.Ext(tmdb.PosterPath)
 	poster_file := u_name + "__Poster" + poster_ext
-	DownloadImage(client, tmdb.PosterPath, poster_file)
+	poster_path := filepath.Join(directory, poster_file)
+	DownloadImage(client, tmdb.PosterPath, poster_path)
 
 	// backdrop
 	backdrop_ext := filepath.Ext(tmdb.BackdropPath)
 	backdrop_file := u_name + "__Backdrop" + backdrop_ext
-	DownloadImage(client, tmdb.BackdropPath, backdrop_file)
+	backdrop_path := filepath.Join(directory, backdrop_file)
+	DownloadImage(client, tmdb.BackdropPath, backdrop_path)
 
 	// create FilmData structure
 	film := FilmData{
 		Id:           id,
 		Title:        tmdb.Title,
 		ReleaseDate:  tmdb.ReleaseDate,
+		Overview:     tmdb.Overview,
 		VoteAverage:  tmdb.VoteAverage,
 		VoteCount:    tmdb.VoteCount,
 		Genres:       genres,
-		File:         u_name_ext,
+		File:         video_file,
 		PosterFile:   poster_file,
 		BackdropFile: backdrop_file,
 	}
-	GenerateJSON(film)
+	info_file := "info.json"
+	info_path := filepath.Join(directory, info_file)
+	GenerateJSON(film, info_path)
 
 	// rename video file
-	fmt.Printf("Renaming '%s' to '%s'.\n", file, u_name_ext)
-	err := os.Rename(file, u_name_ext)
+	video_path := filepath.Join(directory, video_file)
+	fmt.Printf("Renaming '%s' to '%s'.\n", file, video_path)
+	err = os.Rename(file, video_path)
 	CheckErr(err)
 }
 
@@ -242,21 +260,36 @@ func GenerateFiles(client http.Client, tmdb TMDBFilm, file string, genre_map map
 //---------------------------------------------------------------------------
 //
 func main() {
-	if 2 > len(os.Args) {
-		println("Please provide a video file.")
-		return
-	}
-	file := os.Args[1]
-	extension := filepath.Ext(file)
-	query := strings.TrimSuffix(file, extension)
-
 	timeout := time.Duration(TIMEOUT * time.Second)
 	client := http.Client{
 		Timeout: timeout,
 	}
 	genre_map := GetGenreMap(client)
 
-	tmdb_film := SearchForFilm(client, query)
+	files, err := ioutil.ReadDir("./")
+	CheckErr(err)
+	for _, f := range files {
+		if !f.IsDir() {
+			file := f.Name()
+			fmt.Printf("Working on '%s'.\n", file)
+			extension := filepath.Ext(file)
+			query := strings.TrimSuffix(file, extension)
 
-	GenerateFiles(client, tmdb_film, file, genre_map)
+			var answer string
+			fmt.Printf("Use '%s' as the search query. [y/n]\n", query)
+			fmt.Scanf("%s", &answer)
+			if answer == "n" {
+				fmt.Println("Type your query: ")
+				fmt.Scanf("%s", &query)
+			}
+
+			tmdb_film, result := SearchForFilm(client, query)
+
+			if result {
+				GenerateFiles(client, tmdb_film, file, genre_map)
+			} else {
+				fmt.Printf("Skipping '%s' because there were no results.\n", file)
+			}
+		}
+	}
 }
