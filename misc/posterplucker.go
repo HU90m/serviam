@@ -17,7 +17,6 @@ import (
 // Constants
 //---------------------------------------------------------------------------
 //
-const API_KEY = ""
 const SEARCH_URL = "https://api.themoviedb.org/3/search/movie"
 const GENRE_URL = "https://api.themoviedb.org/3/genre/movie/list"
 const IMAGE_URL = "https://image.tmdb.org/t/p/original"
@@ -64,7 +63,7 @@ type FilmData struct {
 	ReleaseDate  string   `json:"release_date"`
 	Overview     string   `json:"overview"`
 	Genres       []string `json:"genres"`
-	Collections  []string `json:"genres"`
+	Collections  []string `json:"collections"`
 	VoteAverage  float64  `json:"vote_average"`
 	VoteCount    int      `json:"vote_count"`
 	File         string   `json:"file"`
@@ -128,11 +127,11 @@ func DownloadImage(client http.Client, tmdb_img string, location string) {
 //
 // Returns a map for decoding genre ids from the TMDB site.
 //
-func GetGenreMap(client http.Client) map[int]string {
+func GetGenreMap(client http.Client, api_key string) map[int]string {
 	var tmdb_genres TMDBGenres
 	genres := make(map[int]string)
 
-	url := GENRE_URL + "?api_key=" + API_KEY
+	url := GENRE_URL + "?api_key=" + api_key
 
 	println("getting genres")
 	resp, err := client.Get(url)
@@ -140,9 +139,6 @@ func GetGenreMap(client http.Client) map[int]string {
 	body_bytes, err := ioutil.ReadAll(resp.Body)
 	CheckErr(err)
 	defer resp.Body.Close()
-	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
-		println("warning: status code not in the 2xx range")
-	}
 	err = json.Unmarshal(body_bytes, &tmdb_genres)
 	CheckErr(err)
 
@@ -156,12 +152,12 @@ func GetGenreMap(client http.Client) map[int]string {
 //
 // Searches for a film in the TMDB.
 //
-func SearchForFilm(client http.Client, query string) (TMDBFilm, bool) {
+func SearchForFilm(client http.Client, api_key string, query string) (TMDBFilm, bool) {
 	var tmdb TMDBSearch
 	var results []TMDBFilm
 	var choice int
 
-	url := SEARCH_URL + "?api_key=" + API_KEY + "&query=" + query
+	url := SEARCH_URL + "?api_key=" + api_key + "&query=" + query
 
 	fmt.Printf("Searching the TMDB data base for '%s'.\n", query)
 	resp, err := client.Get(url)
@@ -170,7 +166,11 @@ func SearchForFilm(client http.Client, query string) (TMDBFilm, bool) {
 	body_bytes, err := ioutil.ReadAll(resp.Body)
 	CheckErr(err)
 	err = json.Unmarshal(body_bytes, &tmdb)
-	CheckErr(err)
+    if err != nil {
+        log.Printf("Error decoding search response: %v\n", err)
+        log.Printf("Body reads:\n%s\n", string(body_bytes))
+		return TMDBFilm{}, false
+    }
 
 	results = tmdb.Results
 	len_results := len(results)
@@ -202,7 +202,13 @@ func SearchForFilm(client http.Client, query string) (TMDBFilm, bool) {
 //
 // Generates all the files for a film.
 //
-func GenerateFiles(client http.Client, tmdb TMDBFilm, file string, genre_map map[int]string) {
+func GenerateFiles(
+	client http.Client,
+	tmdb TMDBFilm,
+	file string,
+	collections []string,
+	genre_map map[int]string,
+) {
 	var genres []string
 	for _, genre_id := range tmdb.GenreIds {
 		genres = append(genres, genre_map[genre_id])
@@ -240,6 +246,7 @@ func GenerateFiles(client http.Client, tmdb TMDBFilm, file string, genre_map map
 		VoteAverage:  tmdb.VoteAverage,
 		VoteCount:    tmdb.VoteCount,
 		Genres:       genres,
+		Collections:  collections,
 		File:         video_file,
 		PosterFile:   poster_file,
 		BackdropFile: backdrop_file,
@@ -260,11 +267,22 @@ func GenerateFiles(client http.Client, tmdb TMDBFilm, file string, genre_map map
 //---------------------------------------------------------------------------
 //
 func main() {
+	if 2 > len(os.Args) {
+		println("Please provide an API key.")
+		return
+	}
+	api_key := os.Args[1]
+
+	var collections []string
+	for idx := 2; idx < len(os.Args); idx++ {
+		collections = append(collections, os.Args[idx])
+	}
+
 	timeout := time.Duration(TIMEOUT * time.Second)
 	client := http.Client{
 		Timeout: timeout,
 	}
-	genre_map := GetGenreMap(client)
+	genre_map := GetGenreMap(client, api_key)
 
 	files, err := ioutil.ReadDir("./")
 	CheckErr(err)
@@ -283,10 +301,10 @@ func main() {
 				fmt.Scanf("%s", &query)
 			}
 
-			tmdb_film, result := SearchForFilm(client, query)
+			tmdb_film, result := SearchForFilm(client, api_key, query)
 
 			if result {
-				GenerateFiles(client, tmdb_film, file, genre_map)
+				GenerateFiles(client, tmdb_film, file, collections, genre_map)
 			} else {
 				fmt.Printf("Skipping '%s' because there were no results.\n", file)
 			}
