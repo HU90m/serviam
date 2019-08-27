@@ -15,11 +15,12 @@
             {{ range $index, $film := .Films}}
                 <a class="film_item" HREF="watch?v={{ $film.Id }}">
                     {{ if $film.HasPoster }}
-                    <img src="films/{{ $film.Poster }}">
+                    <img src="films/{{ $film.PosterFile }}">
                     {{ else }}
                     <img src="files/empty_poster.jpg">
                     {{ end }}
-                    <p>{{ $film.Name }}</p>
+                    <p>{{ $film.Title }}</p>
+                    <p>{{ $film.ReleaseDate }}</p>
                 </a>
             {{ end }}
         </main>

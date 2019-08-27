@@ -32,12 +32,18 @@ type FilmCollection struct {
 // Holds film data.
 //
 type FilmData struct {
-	Id        string `json:"id"`
-	Name      string `json:"name"`
-	Year      int    `json:"year"`
-	Location  string `json:"location"`
-	Poster    string `json:"poster"`
-	HasPoster bool
+	Id           string   `json:"id"`
+	Title        string   `json:"title"`
+	ReleaseDate  string   `json:"release_date"`
+	Overview     string   `json:"overview"`
+	Genres       []string `json:"genres"`
+	Collections  []string `json:"collections"`
+	VoteAverage  float64  `json:"vote_average"`
+	VoteCount    int      `json:"vote_count"`
+	File         string   `json:"file"`
+	PosterFile   string   `json:"poster_file"`
+	BackdropFile string   `json:"backdrop_file"`
+    HasPoster    bool
 }
 
 //---------------------------------------------------------------------------
@@ -53,7 +59,7 @@ func CheckErr(e error) {
 }
 
 //
-// Fills a slice of strings with the lines of a file.
+// Grabs films from the given json file.
 //
 func GrabFile(file_location string, film_collection *FilmCollection) {
 	var err error
@@ -66,7 +72,7 @@ func GrabFile(file_location string, film_collection *FilmCollection) {
 	CheckErr(err)
 
 	for idx, _ := range film_collection.Films {
-		film_collection.Films[idx].HasPoster = (film_collection.Films[idx].Poster != "")
+		film_collection.Films[idx].HasPoster = (film_collection.Films[idx].PosterFile != "")
 	}
 }
 
@@ -99,7 +105,10 @@ func SearchFilms(file_location string, pattern string) FilmCollection {
 	GrabFile(file_location, &all)
 
 	for _, film := range all.Films {
-		if strings.Contains(film.Name, pattern) {
+		if strings.Contains(
+            strings.ToLower(film.Title),
+            strings.ToLower(pattern),
+        ){
 			matched.Films = append(matched.Films, film)
 		}
 	}
@@ -112,15 +121,30 @@ func SearchFilms(file_location string, pattern string) FilmCollection {
 func RandomFilms(file_location string, num_results int) FilmCollection {
 	var num_of_films int
 	var random_idx int
+	var prior_idxs []int
 	var all FilmCollection
 	var random FilmCollection
 
 	GrabFile(file_location, &all)
 	num_of_films = len(all.Films)
 
+    if num_of_films < num_results {
+        num_results = num_of_films
+    }
+
 	for idx := 0; idx < num_results; idx++ {
+        idx_used := false
 		random_idx = rand.Intn(num_of_films)
-		random.Films = append(random.Films, all.Films[random_idx])
+        for _, prior_idx := range prior_idxs {
+            if random_idx == prior_idx {
+                idx_used = true
+                idx--
+            }
+        }
+        if !idx_used {
+            prior_idxs = append(prior_idxs, random_idx)
+            random.Films = append(random.Films, all.Films[random_idx])
+        }
 	}
 	return random
 }
@@ -146,7 +170,7 @@ func WatchHandler(w http.ResponseWriter, r *http.Request) {
 
 	if video != "" {
 		film := FilmFromId(index_file_of_films, video)
-		extension := filepath.Ext(film.Location)
+		extension := filepath.Ext(film.File)
 
 		template_location = "internal/template_video.html"
 		template_values = TemplateVideo{

@@ -2,7 +2,7 @@
 <html lang="en">
     <head>
         <meta charset="utf-8">
-        <title>{{ .Film.Name }}</title>
+        <title>{{ .Film.Title }}</title>
         <link rel="stylesheet" type="text/css" href="files/template_video.css" />
         <link rel="shortcut icon" type="image/png" href="files/icon.png" />
     </head>
@@ -15,11 +15,13 @@
          <main>
             <article>
                 <video controls preload="auto">
-                    <source src="films/{{ .Film.Location }}"
+                    <source src="films/{{ .Film.File }}"
                             type="{{ .Type }}">
                     Sorry, your browser doesn't support embedded videos.
                 </video>
-                <p>{{ .Film.Name }}</p>
+                <p>{{ .Film.Title }}</p>
+                <p>{{ .Film.ReleaseDate }}</p>
+                <p>{{ .Film.Overview }}</p>
             </article>
         </main>
     </body>
