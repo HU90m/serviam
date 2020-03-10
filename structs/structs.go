@@ -169,22 +169,22 @@ type CollectionData struct {
 // Film Data Structure
 //
 type FilmData struct {
-	Id           string      `json:"id"`
-	Title        string      `json:"title"`
-	Tagline      string      `json:"tagline"`
-	Overview     string      `json:"overview"`
-	ReleaseDate  string      `json:"release_date"`
-	Runtime      int         `json:"runtime"`
-	PosterPath   string      `json:"poster_path"`
-	BackdropPath string      `json:"backdrop_path"`
-	Files        []FileData  `json:"files"`
-	Genres       []TMDBGenre `json:"genres"`
-	TMDBId       int         `json:"tmdb_id"`
-	Budget       int         `json:"budget"`
-	Revenue      int         `json:"revenue"`
-	VoteAverage  float64     `json:"vote_average"`
-	VoteCount    int         `json:"vote_count"`
-	Popularity   float64     `json:"popularity"`
+	Id            string      `json:"id"`
+	Title         string      `json:"title"`
+	Tagline       string      `json:"tagline"`
+	Overview      string      `json:"overview"`
+	ReleaseDate   string      `json:"release_date"`
+	Runtime       int         `json:"runtime"`
+	PosterFile    FileData    `json:"poster_file"`
+	BackdropFile  FileData    `json:"backdrop_file"`
+	FilmFiles     []FileData  `json:"film_files"`
+	Genres        []TMDBGenre `json:"genres"`
+	TMDBId        int         `json:"tmdb_id"`
+	Budget        int         `json:"budget"`
+	Revenue       int         `json:"revenue"`
+	VoteAverage   float64     `json:"vote_average"`
+	VoteCount     int         `json:"vote_count"`
+	Popularity    float64     `json:"popularity"`
 }
 
 //
@@ -240,8 +240,8 @@ type EpisodeData struct {
 // File Data Structure
 //
 type FileData struct {
-	Format   string `json:"format"`
-	Location string `json:"location"`
+	Name string `json:"Name"`
+	Type string `json:"type"`
 }
 
 
@@ -254,10 +254,9 @@ type FileData struct {
 func TMDBMovieToFilmData(
 	tmdb_movie *TMDBMovie,
 	id *string,
-	poster_path *string,
-	backdrop_path *string,
-	files *[]FileData,
-	genres *[]TMDBGenre,
+	poster_file *FileData,
+	backdrop_file *FileData,
+	film_files *[]FileData,
 ) (
 	FilmData,
 ) {
@@ -268,10 +267,10 @@ func TMDBMovieToFilmData(
 		tmdb_movie.Overview,
 		tmdb_movie.ReleaseDate,
 		tmdb_movie.Runtime,
-		*poster_path,
-		*backdrop_path,
-		*files,
-		*genres,
+		*poster_file,
+		*backdrop_file,
+		*film_files,
+		tmdb_movie.Genres,
 		tmdb_movie.Id,
 		tmdb_movie.Budget,
 		tmdb_movie.Revenue,
