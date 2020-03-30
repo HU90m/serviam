@@ -11,6 +11,8 @@ import (
 	"os"
 	"os/exec"
 	"serviam/structs"
+	"path"
+	"path/filepath"
 	"strings"
 	"strconv"
 	"time"
@@ -25,6 +27,7 @@ import (
 const TIMEOUT = 30
 const DISPLAY_POSTER = true
 const JSON_INDENT_TYPE = "\t"
+const PICTURE_DIR = "pictures"
 
 //
 // URL Prefixes
@@ -50,28 +53,36 @@ func CheckErr(e error) {
 }
 
 //
-// Yes or No user input
+// Checks a directory exist. If one doesn't, it makes it.
 //
-func YesOrNo(question string) bool {
-	var y_or_n string
+func CheckDir(path string) {
+	var info os.FileInfo
 	var err error
-	var stdin_reader *bufio.Reader
 
-	stdin_reader = bufio.NewReader(os.Stdin)
-	println(question)
-	for {
-		y_or_n, err = stdin_reader.ReadString('\n')
-		CheckErr(err)
-		y_or_n = strings.Trim(y_or_n, "\n")
-		switch y_or_n {
-		case "n":
-			return false
-		case "y":
-			return true
-		default:
-			println("Please enter 'y' or 'n'.")
+	info, err = os.Stat(path)
+	if os.IsNotExist(err) {
+		log.Printf("the directory '%s' does not exist.\n", path)
+		log.Printf("making '%s' directory.\n", path)
+		os.MkdirAll(path, 0755)
+	} else {
+		if !info.IsDir() {
+			log.Fatalf("'%s' is not a directory.", path)
 		}
 	}
+}
+
+//
+// Creates a file containing the bytes given
+//
+func SaveBlob(blob []byte, location string) {
+	var err error
+	var file_p *os.File
+	file_p, err = os.Create(location)
+	CheckErr(err)
+	_, err = file_p.Write(blob)
+	CheckErr(err)
+	err = file_p.Close()
+	CheckErr(err)
 }
 
 //
@@ -79,7 +90,7 @@ func YesOrNo(question string) bool {
 //
 func DisplayImage(image_location string) {
 	var cmd *exec.Cmd
-	println("Displaying", image_location)
+	log.Printf("Displaying '%s'.\n", image_location)
 	cmd = exec.Command("sxiv", image_location)
 	bytes, err := cmd.CombinedOutput()
 	os.Stdout.Write(bytes)
@@ -108,37 +119,37 @@ func DownloadImage(client http.Client, tmdb_img string, location string) {
 }
 
 //
-// Returns a map for decoding genre ids from the TMDB site.
+// Yes or No user input
 //
-func GetGenreMap(client http.Client, api_key string) map[int]string {
-	var tmdb_genres structs.TMDBGenres
-	genres := make(map[int]string)
+func YesOrNo(question string) bool {
+	var y_or_n string
+	var err error
+	var stdin_reader *bufio.Reader
 
-	url := GENRE_URL + "?api_key=" + api_key
-
-	println("getting genres")
-	resp, err := client.Get(url)
-	CheckErr(err)
-	body_bytes, err := ioutil.ReadAll(resp.Body)
-	CheckErr(err)
-	defer resp.Body.Close()
-	err = json.Unmarshal(body_bytes, &tmdb_genres)
-	CheckErr(err)
-
-	for _, genre := range tmdb_genres.Genres {
-		genres[genre.Id] = genre.Name
+	stdin_reader = bufio.NewReader(os.Stdin)
+	fmt.Println(question)
+	for {
+		y_or_n, err = stdin_reader.ReadString('\n')
+		CheckErr(err)
+		y_or_n = strings.Trim(y_or_n, "\n")
+		switch y_or_n {
+		case "n":
+			return false
+		case "y":
+			return true
+		default:
+			fmt.Println("Please enter 'y' or 'n'.")
+		}
 	}
-	println("got genres")
-	return genres
 }
 
 func NotOK(resp *http.Response) bool {
 	if resp.StatusCode != 200 {
-		fmt.Printf("Status Code: %d\n", resp.StatusCode)
+		log.Printf("Status Code: %d\n", resp.StatusCode)
 		defer resp.Body.Close()
 		body_bytes, err := ioutil.ReadAll(resp.Body)
 		CheckErr(err)
-		fmt.Printf("Response Body:\n%s\n", string(body_bytes))
+		log.Printf("Response Body:\n%s\n", string(body_bytes))
 		return true
 	} else {
 		return false
@@ -172,15 +183,15 @@ func FindFilm(
 
 	for !finished {
 		if change_query {
-			println("Type your new query and press enter:")
+			log.Println("Type your new query and press enter:")
 			query, err = stdin_reader.ReadString('\n')
 			CheckErr(err)
 			query = strings.Trim(query, "\n")
-			query = strings.Replace(query, " ", "%20", -1)
 			change_query = false
 		}
 
-		fmt.Printf("Current query is '%s'.\n", query)
+		query = strings.Replace(query, " ", "%20", -1)
+		log.Printf("Current query is '%s'.\n", query)
 		if YesOrNo("Are you happy with this query? (y/n)") {
 			change_query = false
 		} else {
@@ -190,7 +201,7 @@ func FindFilm(
 		if !change_query {
 			url := MOVIE_SEARCH_URL + "?api_key=" + api_key + "&query=" + query
 
-			fmt.Printf("Searching the TMDB data base for '%s'.\n", query)
+			log.Printf("Searching the TMDB data base for '%s'.\n", query)
 			resp, err := client.Get(url)
 			CheckErr(err)
 			if NotOK(resp) {
@@ -201,14 +212,14 @@ func FindFilm(
 			CheckErr(err)
 			err = json.Unmarshal(body_bytes, &tmdb)
 			if err != nil {
-				fmt.Printf("Error decoding search response: %v\n", err)
-				fmt.Printf("Response Body: %s\n", string(body_bytes))
+				log.Printf("Error decoding search response: %v\n", err)
+				log.Printf("Response Body: %s\n", string(body_bytes))
 				return structs.TMDBMovieSearchResult{}, false
 			}
 
 			results = tmdb.Results
 			len_results = len(results)
-			fmt.Printf(
+			log.Printf(
 				"There are %d results for the query '%s'.\n",
 				len_results,
 				query,
@@ -241,7 +252,7 @@ func FindFilm(
 			}
 		}
 		if !finished && !change_query {
-			println("Select a film:")
+			fmt.Println("Select a film:")
 			for {
 				fmt.Scanf("%d", &choice)
 				if choice < 0 || choice >= len_results {
@@ -250,13 +261,17 @@ func FindFilm(
 					break
 				}
 			}
-			fmt.Printf(
+			log.Printf(
 				"The film '%s' has been selected.\n",
 				results[choice].Title,
 			)
-			DownloadImage(client, results[choice].PosterPath, "test.jpg")
+			DownloadImage(
+				client,
+				results[choice].PosterPath,
+				path.Join(PICTURE_DIR, results[choice].PosterPath),
+			)
 			if DISPLAY_POSTER {
-				DisplayImage("test.jpg")
+				DisplayImage(path.Join(PICTURE_DIR, results[choice].PosterPath))
 			}
 			if YesOrNo("Do you confirm this is the correct film? (y/n)") {
 				finished = true
@@ -267,6 +282,15 @@ func FindFilm(
 		}
 	}
 	if found_film {
+		if results[choice].BackdropPath != "" {
+			DownloadImage(
+				client,
+				results[choice].BackdropPath,
+				path.Join(PICTURE_DIR, results[choice].PosterPath),
+			)
+		} else {
+			log.Println("No Backdrop in database.")
+		}
 		return results[choice], true
 	} else {
 		return structs.TMDBMovieSearchResult{}, false
@@ -276,243 +300,68 @@ func FindFilm(
 //
 // Gets Film with given TMDB id.
 //
-func GetFilm(
+func MakeTMDBInfoFile(
 	client http.Client,
 	api_key string,
 	id int,
+	file_path string,
 ) {
 	var tmdb structs.TMDBMovie
+	var blob []byte
+	var err error
 
+	log.Println("Getting Film Data.")
 	url := MOVIE_GET_URL + strconv.Itoa(id) + "?api_key=" + api_key
-	fmt.Printf("URL: %s.\n", url)
-
-	fmt.Printf("Getting Film with id=%d.\n", id)
 	resp, err := client.Get(url)
 	CheckErr(err)
 	if NotOK(resp) {
 		return
 	}
 	defer resp.Body.Close()
-	body_bytes, err := ioutil.ReadAll(resp.Body)
-	CheckErr(err)
-	fmt.Printf("Response Body: %s\n", string(body_bytes))
-
-	err = json.Unmarshal(body_bytes, &tmdb)
+	blob, err = ioutil.ReadAll(resp.Body)
 	CheckErr(err)
 
-	//new stuff
-
-	var json_blob []byte
-	var film_data structs.FilmData
-	var film_files []structs.FileData
-
-	json_blob, err = json.MarshalIndent(tmdb, "", JSON_INDENT_TYPE)
+	// indent blob
+	err = json.Unmarshal(blob, &tmdb)
 	CheckErr(err)
-	println(" Their format")
-	println("--------------")
-	os.Stdout.Write(json_blob)
-	print("\n")
-
-	{
-		film_files = append(film_files, structs.FileData{
-			"title__date.mp4",
-			"mp4",
-		})
-		film_files = append(film_files, structs.FileData{
-			"title__date.mkv",
-			"mkv",
-		})
-		film_files = append(film_files, structs.FileData{
-			"title__date.srt",
-			"srt",
-		})
-		poster_file := structs.FileData{
-			"Poster.jpg",
-			"jpg",
-		}
-		backdrop_file := structs.FileData{
-			"BackDrop.jpg",
-			"jpg",
-		}
-
-		id := "title__date"
-		film_data = structs.TMDBMovieToFilmData(
-			&tmdb,
-			&id,
-			&poster_file,
-			&backdrop_file,
-			&film_files,
-		)
-	}
-	json_blob, err = json.MarshalIndent(film_data, "", JSON_INDENT_TYPE)
+	blob, err = json.MarshalIndent(tmdb, "", JSON_INDENT_TYPE)
 	CheckErr(err)
-	println(" My format")
-	println("-----------")
-	os.Stdout.Write(json_blob)
-	print("\n")
+
+	// save blob
+	log.Println("Saving Film Data.")
+	SaveBlob(blob, file_path)
 }
 
-//
-// Searches for a tv show in the TMDB.
-//
-func SearchForShow(
-	client http.Client,
-	api_key string,
-	query string,
-) (
-	structs.TMDBTVSearchResult,
-	bool,
-) {
-	var tmdb structs.TMDBTVSearch
-	var results []structs.TMDBTVSearchResult
-	var choice int
-
-	url := TV_SEARCH_URL + "?api_key=" + api_key + "&query=" + query
-
-	fmt.Printf("Searching the TMDB data base for '%s'.\n", query)
-	resp, err := client.Get(url)
-	CheckErr(err)
-	if NotOK(resp) {
-		return structs.TMDBTVSearchResult{}, false
-	}
-	defer resp.Body.Close()
-	body_bytes, err := ioutil.ReadAll(resp.Body)
-	CheckErr(err)
-	err = json.Unmarshal(body_bytes, &tmdb)
-	if err != nil {
-		fmt.Printf("Error decoding search response: %v\n", err)
-		fmt.Printf("Response Body: %s\n", string(body_bytes))
-		return structs.TMDBTVSearchResult{}, false
-	}
-
-	results = tmdb.Results
-	len_results := len(results)
-	fmt.Printf(
-		"There are %d results for the query '%s'.\n",
-		len_results,
-		query,
-	)
-	if len_results == 0 {
-		return structs.TMDBTVSearchResult{}, false
-	}
-	for idx, _ := range results {
-		idx_r := len_results - idx - 1
-		fmt.Printf(
-			"%3d: %s (%s)\n",
-			idx_r,
-			results[idx_r].Name,
-			results[idx_r].FirstAirDate,
-		)
-	}
-	fmt.Scanf("%d", &choice)
-	if choice < 0 || choice >= len_results {
-		return results[0], false
-	}
-	fmt.Printf("The film '%s' has been selected\n", results[choice].Name)
-	return results[choice], true
-}
-
-//
-// Gets Show with given TMDB id.
-//
-func GetShow(
-	client http.Client,
-	api_key string,
-	id int,
-) {
-	url := TV_GET_URL + strconv.Itoa(id) + "?api_key=" + api_key
-	fmt.Printf("URL: %s.\n", url)
-
-	fmt.Printf("Getting Film with id=%d.\n", id)
-	resp, err := client.Get(url)
-	CheckErr(err)
-	if NotOK(resp) {
-		return
-	}
-	defer resp.Body.Close()
-	body_bytes, err := ioutil.ReadAll(resp.Body)
-	CheckErr(err)
-	fmt.Printf("Response Body: %s\n", string(body_bytes))
-}
 
 //---------------------------------------------------------------------------
 // Main
 //---------------------------------------------------------------------------
 //
 func main() {
-	var tmdb structs.TMDBMovie
-	var film_data structs.FilmData
-	var film_files []structs.FileData
-
-	tmdb.Id = 92
-	tmdb.Genres = append(tmdb.Genres, structs.TMDBGenre{
-		4,
-		"hello",
-	})
-	tmdb.Genres = append(tmdb.Genres, structs.TMDBGenre{
-		9,
-		"goodbye",
-	})
-	film_files = append(film_files, structs.FileData{
-		"title__date.mp4",
-		"mp4",
-	})
-	film_files = append(film_files, structs.FileData{
-		"title__date.mkv",
-		"mkv",
-	})
-	film_files = append(film_files, structs.FileData{
-		"title__date.srt",
-		"srt",
-	})
-	poster_file := structs.FileData{
-		"Poster.jpg",
-		"jpg",
-	}
-	backdrop_file := structs.FileData{
-		"BackDrop.jpg",
-		"jpg",
-	}
-
-	id := "title__date"
-
-	film_data = structs.TMDBMovieToFilmData(
-		&tmdb,
-		&id,
-		&poster_file,
-		&backdrop_file,
-		&film_files,
-	)
-
-	fmt.Printf("%v\n", tmdb)
-	fmt.Printf("%v\n", film_data)
-
-	if DISPLAY_POSTER {
-		DisplayImage("/home/hugo/Downloads/hackasoton/DSC03096.jpg")
-	}
-
 	if len(os.Args) < 3 {
-		println("Please provide an API key.")
+		println("Please provide an API key and some film files to find.")
 		return
 	}
-	api_key := os.Args[1]
-	film_query := os.Args[2]
-	//show_query := os.Args[3]
-
-	var collections []string
-	for idx := 2; idx < len(os.Args); idx++ {
-		collections = append(collections, os.Args[idx])
-	}
-
 	timeout := time.Duration(TIMEOUT * time.Second)
 	client := http.Client{
 		Timeout: timeout,
 	}
-	//genre_map := GetGenreMap(client, api_key)
 
-	tmdb_film, _ := FindFilm(client, api_key, film_query)
-	fmt.Printf("%v\n", tmdb_film)
-	//GetFilm(client, api_key, tmdb_film.Id)
-	//tmdb_show, _ := SearchForShow(client, api_key, show_query)
-	//GetFilm(client, api_key, tmdb_show.Id)
+	CheckDir(PICTURE_DIR)
+
+	api_key := os.Args[1]
+	for idx := 2; idx < len(os.Args); idx++ {
+
+		query := strings.TrimSuffix(os.Args[idx], filepath.Ext(os.Args[idx]))
+
+		tmdb_result, film_found := FindFilm(client, api_key, query)
+		if film_found {
+			MakeTMDBInfoFile(
+				client,
+				api_key,
+				tmdb_result.Id,
+				query + ".json",
+			)
+		}
+	}
 }

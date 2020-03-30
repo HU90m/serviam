@@ -7,21 +7,21 @@ package structs
 // TMDB movie information
 //
 type TMDBMovie struct {
-	BackdropPath        string           `json:"backdrop_path"`
-	BelongsToCollection []TMDBCollection `json:"belongs_to_collection"`
-	Budget              int              `json:"budget"`
-	Genres              []TMDBGenre      `json:"genres"`
-	Id                  int              `json:"id"`
-	Overview            string           `json:"overview"`
-	Popularity          float64          `json:"popularity"`
-	PosterPath          string           `json:"poster_path"`
-	ReleaseDate         string           `json:"release_date"`
-	Revenue             int              `json:"revenue"`
-	Runtime             int              `json:"runtime"`
-	Tagline             string           `json:"tagline"`
-	Title               string           `json:"title"`
-	VoteAverage         float64          `json:"vote_average"`
-	VoteCount           int              `json:"vote_count"`
+	BackdropPath        string         `json:"backdrop_path"`
+	BelongsToCollection TMDBCollection `json:"belongs_to_collection"`
+	Budget              int            `json:"budget"`
+	Genres              []TMDBGenre    `json:"genres"`
+	Id                  int            `json:"id"`
+	Overview            string         `json:"overview"`
+	Popularity          float64        `json:"popularity"`
+	PosterPath          string         `json:"poster_path"`
+	ReleaseDate         string         `json:"release_date"`
+	Revenue             int            `json:"revenue"`
+	Runtime             int            `json:"runtime"`
+	Tagline             string         `json:"tagline"`
+	Title               string         `json:"title"`
+	VoteAverage         float64        `json:"vote_average"`
+	VoteCount           int            `json:"vote_count"`
 }
 
 //
