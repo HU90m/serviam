@@ -28,6 +28,7 @@ const TIMEOUT = 30
 const DISPLAY_POSTER = true
 const JSON_INDENT_TYPE = "\t"
 const PICTURE_DIR = "pictures"
+const COLLECTION_DIR = "collections"
 
 //
 // URL Prefixes
@@ -298,13 +299,15 @@ func FindFilm(
 }
 
 //
-// Gets Film with given TMDB id.
+// Saves tmdb info json file of a film
 //
-func MakeTMDBInfoFile(
+func MakeTMDBFilmInfoFile(
 	client http.Client,
 	api_key string,
 	id int,
 	file_path string,
+) (
+	structs.TMDBMovie,
 ) {
 	var tmdb structs.TMDBMovie
 	var blob []byte
@@ -315,7 +318,7 @@ func MakeTMDBInfoFile(
 	resp, err := client.Get(url)
 	CheckErr(err)
 	if NotOK(resp) {
-		return
+		return tmdb
 	}
 	defer resp.Body.Close()
 	blob, err = ioutil.ReadAll(resp.Body)
@@ -330,8 +333,49 @@ func MakeTMDBInfoFile(
 	// save blob
 	log.Println("Saving Film Data.")
 	SaveBlob(blob, file_path)
+
+	return tmdb
 }
 
+//
+// Saves tmdb info json file of a collection and downloads its images.
+//
+func MakeTMDBCollectionInfoFile(
+	client http.Client,
+	tmdb structs.TMDBCollection,
+) {
+	var blob []byte
+	var err error
+
+	blob, err = json.MarshalIndent(tmdb, "", JSON_INDENT_TYPE)
+	CheckErr(err)
+
+	collection_path := path.Join(COLLECTION_DIR, tmdb.Name)
+
+	if _, err := os.Stat(collection_path); err == nil {
+		log.Printf("The '%s' collection is already saved.\n", tmdb.Name)
+
+	} else if os.IsNotExist(err) {
+		log.Printf("Saving the '%s' collection.\n", tmdb.Name)
+		SaveBlob(blob, collection_path)
+
+		if tmdb.PosterPath != "" {
+			DownloadImage(
+				client,
+				tmdb.PosterPath,
+				path.Join(PICTURE_DIR, tmdb.PosterPath),
+			)
+		}
+		if tmdb.BackdropPath != "" {
+			DownloadImage(
+				client,
+				tmdb.BackdropPath,
+				path.Join(PICTURE_DIR, tmdb.BackdropPath),
+			)
+		}
+	}
+
+}
 
 //---------------------------------------------------------------------------
 // Main
@@ -348,6 +392,7 @@ func main() {
 	}
 
 	CheckDir(PICTURE_DIR)
+	CheckDir(COLLECTION_DIR)
 
 	api_key := os.Args[1]
 	for idx := 2; idx < len(os.Args); idx++ {
@@ -356,12 +401,18 @@ func main() {
 
 		tmdb_result, film_found := FindFilm(client, api_key, query)
 		if film_found {
-			MakeTMDBInfoFile(
+			tmdb_film := MakeTMDBFilmInfoFile(
 				client,
 				api_key,
 				tmdb_result.Id,
 				query + ".json",
 			)
+			if tmdb_film.BelongsToCollection.Name != "" {
+				MakeTMDBCollectionInfoFile(
+					client,
+					tmdb_film.BelongsToCollection,
+				)
+			}
 		}
 	}
 }
