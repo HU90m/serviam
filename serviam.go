@@ -1,14 +1,33 @@
 package main
 
 import (
+	"log"
 	"encoding/json"
 	"html/template"
+	"os"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
-	"path/filepath"
+	"path"
 	"strings"
+	"serviam/structs"
 )
+
+
+//---------------------------------------------------------------------------
+// Constants
+//---------------------------------------------------------------------------
+//
+// directories
+//
+const (
+	MEDIA_ROOT = "media"
+	MEDIA_FILMS_DIR = "films"
+	MEDIA_COLLECTIONS_DIR = "collections"
+	VIDEO_TEMPLATE_PATH = "internal/template_video.html"
+	RESULTS_TEMPLATE_PATH = "internal/template_results.html"
+)
+
 
 //---------------------------------------------------------------------------
 // Structures
@@ -16,34 +35,16 @@ import (
 //
 // Holds values required by the video template.
 //
-type TemplateVideo struct {
-	Film FilmData
-	Type string
+type VideoTemplate struct {
+	Film structs.FilmData
+	File structs.FileData
 }
 
 //
-// Holds a collection of films.
+// Holds values required by the results template.
 //
-type FilmCollection struct {
-	Films []FilmData `json:"collection"`
-}
-
-//
-// Holds film data.
-//
-type FilmData struct {
-	Id           string   `json:"id"`
-	Title        string   `json:"title"`
-	ReleaseDate  string   `json:"release_date"`
-	Overview     string   `json:"overview"`
-	Genres       []string `json:"genres"`
-	Collections  []string `json:"collections"`
-	VoteAverage  float64  `json:"vote_average"`
-	VoteCount    int      `json:"vote_count"`
-	File         string   `json:"file"`
-	PosterFile   string   `json:"poster_file"`
-	BackdropFile string   `json:"backdrop_file"`
-	HasPoster    bool
+type ResultsTemplate struct {
+	Films   []structs.FilmData
 }
 
 //---------------------------------------------------------------------------
@@ -54,25 +55,93 @@ type FilmData struct {
 //
 func CheckErr(e error) {
 	if e != nil {
-		panic(e)
+		log.Fatal(e)
 	}
 }
 
 //
-// Grabs films from the given json file.
+// File 
 //
-func GrabFile(file_location string, film_collection *FilmCollection) {
+func FindFileType(
+	files *[]structs.FileData,
+	file_type string,
+) (
+	structs.FileData,
+) {
+	var file structs.FileData
+	for _, file = range *files {
+		if file.Type == file_type {
+			break
+		}
+	}
+	return file
+}
+
+//
+// finds the json info files in a directory
+//
+func GetInfoFiles(directory string) []string {
 	var err error
-	var raw_file []uint8
+	var output []string
+	var files_slice []os.FileInfo
 
-	raw_file, err = ioutil.ReadFile(file_location)
+	files_slice, err = ioutil.ReadDir(directory)
 	CheckErr(err)
 
-	err = json.Unmarshal(raw_file, film_collection)
-	CheckErr(err)
+	for _, file := range files_slice {
+		if file.IsDir() {
+			json_path := path.Join(
+				directory,
+				file.Name(),
+				file.Name() + ".json",
+			)
+			if _, err := os.Stat(json_path); err == nil {
+				output = append(output, json_path)
+			} else if os.IsNotExist(err) {
+				log.Printf("'%s' doesn't exist.\n", json_path)
+			} else {
+				CheckErr(err)
+			}
+		}
+	}
+	return output
+}
 
-	for idx, _ := range film_collection.Films {
-		film_collection.Films[idx].HasPoster = (film_collection.Films[idx].PosterFile != "")
+//
+// Build database
+//
+func BuildDatabase(
+	films *[]structs.FilmData,
+	collections *[]structs.CollectionData,
+) {
+	var err error
+	var blob []byte
+	var film_data structs.FilmData
+	var collection_data structs.CollectionData
+
+	films_dir := path.Join(MEDIA_ROOT, MEDIA_FILMS_DIR)
+	films_dir_files := GetInfoFiles(films_dir)
+
+	for _, file := range films_dir_files {
+		log.Printf("Loading '%s'...\n", file)
+		blob, err = ioutil.ReadFile(file)
+		CheckErr(err)
+		err = json.Unmarshal(blob, &film_data)
+		CheckErr(err)
+		*films = append(*films, film_data)
+	}
+
+	collections_dir := path.Join(MEDIA_ROOT, MEDIA_COLLECTIONS_DIR)
+	collections_dir_files := GetInfoFiles(collections_dir)
+
+	for _, file := range collections_dir_files {
+		log.Printf("Loading '%s'...\n", file)
+		blob, err = ioutil.ReadFile(file)
+		CheckErr(err)
+		err = json.Unmarshal(blob, &collection_data)
+		CheckErr(err)
+		*collections = append(*collections, collection_data)
+		*films = append(*films, collection_data.Films...)
 	}
 }
 
@@ -81,72 +150,74 @@ func GrabFile(file_location string, film_collection *FilmCollection) {
 // If no film has the given id,
 // returns the last film in the collection.
 //
-func FilmFromId(file_location string, id string) FilmData {
-	var all FilmCollection
-	var film FilmData
+func FilmFromId(films *[]structs.FilmData, id string) int {
+	var idx int
+	var film structs.FilmData
 
-	GrabFile(file_location, &all)
-
-	for _, film = range all.Films {
+	for idx, film = range *films {
 		if film.Id == id {
 			break
 		}
 	}
-	return film
+	return idx
 }
 
 //
 // Returns a films which have matched the search pattern.
 //
-func SearchFilms(file_location string, pattern string) FilmCollection {
-	var all FilmCollection
-	var matched FilmCollection
+func SearchFilms(
+	films *[]structs.FilmData,
+	pattern string,
+) (
+	[]structs.FilmData,
+) {
+	var film structs.FilmData
+	var output []structs.FilmData
 
-	GrabFile(file_location, &all)
-
-	for _, film := range all.Films {
+	for _, film = range *films {
 		if strings.Contains(
 			strings.ToLower(film.Title),
 			strings.ToLower(pattern),
 		) {
-			matched.Films = append(matched.Films, film)
+			output = append(output, film)
 		}
 	}
-	return matched
+	return output
 }
 
 //
-// Returns a collection of random films.
+// Returns a number of random films.
 //
-func RandomFilms(file_location string, num_results int) FilmCollection {
-	var num_of_films int
+func RandomFilms(
+	films *[]structs.FilmData,
+	num_results int,
+) (
+	[]structs.FilmData,
+) {
 	var random_idx int
 	var prior_idxs []int
-	var all FilmCollection
-	var random FilmCollection
+	var output []structs.FilmData
 
-	GrabFile(file_location, &all)
-	num_of_films = len(all.Films)
+	num_films := len(*films)
 
-	if num_of_films < num_results {
-		num_results = num_of_films
-	}
-
-	for idx := 0; idx < num_results; idx++ {
-		idx_used := false
-		random_idx = rand.Intn(num_of_films)
-		for _, prior_idx := range prior_idxs {
-			if random_idx == prior_idx {
-				idx_used = true
-				idx--
+	if num_films < num_results {
+		output = *films
+	} else {
+		for len(output) < num_results {
+			idx_used := false
+			random_idx = rand.Intn(num_films)
+			for _, prior_idx := range prior_idxs {
+				if random_idx == prior_idx {
+					idx_used = true
+				}
+			}
+			if !idx_used {
+				prior_idxs = append(prior_idxs, random_idx)
+				output = append(output, (*films)[random_idx])
 			}
 		}
-		if !idx_used {
-			prior_idxs = append(prior_idxs, random_idx)
-			random.Films = append(random.Films, all.Films[random_idx])
-		}
 	}
-	return random
+	return output
 }
 
 //
@@ -156,50 +227,71 @@ func RootHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "watch", http.StatusSeeOther)
 }
 
-//
-// Handles /watch requests.
-//
-func WatchHandler(w http.ResponseWriter, r *http.Request) {
-	const index_file_of_films = "internal/index.json"
 
-	var template_location string
+//---------------------------------------------------------------------------
+// Watch Handler
+//---------------------------------------------------------------------------
+//
+// Holds data for /watch requests
+//
+type WatchHandler struct {
+	media_root  string
+	films       []structs.FilmData
+	collections []structs.CollectionData
+}
+
+//
+// Handles /watch requests
+//
+func (data *WatchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
+	var template_path string
 	var template_values interface{}
 
-	video := r.FormValue("v")
+	video_id := r.FormValue("v")
 	query := r.FormValue("q")
 
-	if video != "" {
-		film := FilmFromId(index_file_of_films, video)
-		extension := filepath.Ext(film.File)
+	if video_id != "" {
+		film_idx := FilmFromId(&data.films, video_id)
 
-		template_location = "internal/template_video.html"
-		template_values = TemplateVideo{
-			Film: film,
-			Type: "video/" + extension[1:],
+		template_path = VIDEO_TEMPLATE_PATH
+		template_values = VideoTemplate{
+			Film: data.films[film_idx],
+			File: FindFileType(&data.films[film_idx].FilmFiles, "mp4"),
 		}
-	} else if query != "" {
-		collection := SearchFilms(index_file_of_films, query)
-		template_location = "internal/template_results.html"
-		template_values = collection
 	} else {
-		collection := RandomFilms(index_file_of_films, 30)
-		template_location = "internal/template_results.html"
-		template_values = collection
+		var film_results []structs.FilmData
+		if query != "" {
+			film_results = SearchFilms(&data.films, query)
+		} else {
+			film_results = RandomFilms(&data.films, 30)
+		}
+		template_path = RESULTS_TEMPLATE_PATH
+		template_values = ResultsTemplate{
+			Films: film_results,
+		}
 	}
-	t, err := template.ParseFiles(template_location)
+	t, err := template.ParseFiles(template_path)
 	CheckErr(err)
 	err = t.Execute(w, template_values)
 	CheckErr(err)
 }
+
 
 //---------------------------------------------------------------------------
 // Main
 //---------------------------------------------------------------------------
 //
 func main() {
+	watch_handler := new(WatchHandler)
+
+	BuildDatabase(&watch_handler.films, &watch_handler.collections)
+	log.Printf("Loaded %d Collecions.\n", len(watch_handler.collections))
+	log.Printf("Loaded %d Films.\n", len(watch_handler.films))
+
 	http.HandleFunc("/", RootHandler)
-	http.Handle("/films/", http.FileServer(http.Dir(".")))
+	http.Handle("/media/", http.FileServer(http.Dir(".")))
 	http.Handle("/files/", http.FileServer(http.Dir(".")))
-	http.HandleFunc("/watch", WatchHandler)
+	http.Handle("/watch", watch_handler)
 	http.ListenAndServe(":8080", nil)
 }

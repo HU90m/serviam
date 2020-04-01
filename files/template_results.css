@@ -40,7 +40,18 @@ main {
     font-weight: normal;
     color: white;
 }
-.film_item > * {
+.film_item > img {
     width: 100%;
-    align-self: center
+    align-self: center;
+}
+.film_item > div {
+    width: 100%;
+	margin-top: 0.25rem;
+    align-self: center;
+}
+.film_item > div > p {
+    width: 100%;
+	margin-top: 0.25rem;
+	margin-bottom: 0.25rem;
+    align-self: center;
 }

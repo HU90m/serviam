@@ -1,6 +1,101 @@
 package structs
 
 //---------------------------------------------------------------------------
+// Serviam Structures
+//---------------------------------------------------------------------------
+//
+// Collection Data Structure
+//
+type CollectionData struct {
+	Name         string     `json:"name"`
+	PosterFile   FileData   `json:"poster_file"`
+	BackdropFile FileData   `json:"backdrop_file"`
+	Films        []FilmData `json:"films"`
+	TMDBId       int        `json:"tmdb_id"`
+}
+
+//
+// Film Data Structure
+//
+type FilmData struct {
+	Id            string      `json:"id"`
+	Title         string      `json:"title"`
+	Tagline       string      `json:"tagline"`
+	Overview      string      `json:"overview"`
+	ReleaseDate   string      `json:"release_date"`
+	Runtime       int         `json:"runtime"`
+	PosterFile    FileData    `json:"poster_file"`
+	BackdropFile  FileData    `json:"backdrop_file"`
+	FilmFiles     []FileData  `json:"film_files"`
+	Genres        []TMDBGenre `json:"genres"`
+	TMDBId        int         `json:"tmdb_id"`
+	Budget        int         `json:"budget"`
+	Revenue       int         `json:"revenue"`
+	VoteAverage   float64     `json:"vote_average"`
+	VoteCount     int         `json:"vote_count"`
+	Popularity    float64     `json:"popularity"`
+}
+
+//
+// Show Data Structure
+//
+type ShowData struct {
+	BackdropPath     string       `json:"backdrop_path"`
+	EpisodeRunTime   []int        `json:"episode_run_time"`
+	FirstAirDate     string       `json:"first_air_date"`
+	Genres           []TMDBGenre  `json:"genres"`
+	Id               int          `json:"id"`
+	Name             string       `json:"name"`
+	NumberOfEpisodes int          `json:"number_of_episodes"`
+	NumberOfSeasons  int          `json:"number_of_seasons"`
+	Overview         string       `json:"overview"`
+	Popularity       float64      `json:"popularity"`
+	PosterPath       string       `json:"poster_path"`
+	Seasons          []SeasonData `json:"seasons"`
+	Type             string       `json:"type"`
+	VoteAverage      float64      `json:"vote_average"`
+	VoteCount        int          `json:"vote_count"`
+}
+
+//
+// Season Data Structure
+//
+type SeasonData struct {
+	AirDate      string        `json:"air_date"`
+	Episodes     []EpisodeData `json:"episodes"`
+	Name         string        `json:"name"`
+	Overview     string        `json:"overview"`
+	Id           int           `json:"id"`
+	PosterPath   string        `json:"poster_path"`
+	SeasonNumber int           `json:"season_number"`
+}
+
+//
+// Episode Data Structure
+//
+type EpisodeData struct {
+	AirDate       string      `json:"air_date"`
+	EpisodeNumber int         `json:"episode_number"`
+	Name          string      `json:"name"`
+	Overview      string      `json:"overview"`
+	Id            int         `json:"id"`
+	StillPath     string      `json:"still_path"`
+	VoteAverage   float64     `json:"vote_average"`
+	VoteCount     int         `json:"vote_count"`
+	Files         []FileData  `json:"files"`
+}
+
+//
+// File Data Structure
+//
+type FileData struct {
+	Name string `json:"name"`
+	Path string `json:"path"`
+	Type string `json:"type"`
+}
+
+
+//---------------------------------------------------------------------------
 // TMDB Structures
 //---------------------------------------------------------------------------
 //
@@ -148,100 +243,6 @@ type TMDBGenres struct {
 type TMDBGenre struct {
 	Id   int    `json:"id"`
 	Name string `json:"name"`
-}
-
-
-//---------------------------------------------------------------------------
-// Serviam Structures
-//---------------------------------------------------------------------------
-//
-// Collection Data Structure
-//
-type CollectionData struct {
-	Name         string     `json:"name"`
-	PosterFile   FileData   `json:"poster_file"`
-	BackdropFile FileData   `json:"backdrop_file"`
-	Films        []FilmData `json:"films"`
-	TMDBId       int        `json:"tmdb_id"`
-}
-
-//
-// Film Data Structure
-//
-type FilmData struct {
-	Id            string      `json:"id"`
-	Title         string      `json:"title"`
-	Tagline       string      `json:"tagline"`
-	Overview      string      `json:"overview"`
-	ReleaseDate   string      `json:"release_date"`
-	Runtime       int         `json:"runtime"`
-	PosterFile    FileData    `json:"poster_file"`
-	BackdropFile  FileData    `json:"backdrop_file"`
-	FilmFiles     []FileData  `json:"film_files"`
-	Genres        []TMDBGenre `json:"genres"`
-	TMDBId        int         `json:"tmdb_id"`
-	Budget        int         `json:"budget"`
-	Revenue       int         `json:"revenue"`
-	VoteAverage   float64     `json:"vote_average"`
-	VoteCount     int         `json:"vote_count"`
-	Popularity    float64     `json:"popularity"`
-}
-
-//
-// Show Data Structure
-//
-type ShowData struct {
-	BackdropPath     string       `json:"backdrop_path"`
-	EpisodeRunTime   []int        `json:"episode_run_time"`
-	FirstAirDate     string       `json:"first_air_date"`
-	Genres           []TMDBGenre  `json:"genres"`
-	Id               int          `json:"id"`
-	Name             string       `json:"name"`
-	NumberOfEpisodes int          `json:"number_of_episodes"`
-	NumberOfSeasons  int          `json:"number_of_seasons"`
-	Overview         string       `json:"overview"`
-	Popularity       float64      `json:"popularity"`
-	PosterPath       string       `json:"poster_path"`
-	Seasons          []SeasonData `json:"seasons"`
-	Type             string       `json:"type"`
-	VoteAverage      float64      `json:"vote_average"`
-	VoteCount        int          `json:"vote_count"`
-}
-
-//
-// Season Data Structure
-//
-type SeasonData struct {
-	AirDate      string        `json:"air_date"`
-	Episodes     []EpisodeData `json:"episodes"`
-	Name         string        `json:"name"`
-	Overview     string        `json:"overview"`
-	Id           int           `json:"id"`
-	PosterPath   string        `json:"poster_path"`
-	SeasonNumber int           `json:"season_number"`
-}
-
-//
-// Episode Data Structure
-//
-type EpisodeData struct {
-	AirDate       string      `json:"air_date"`
-	EpisodeNumber int         `json:"episode_number"`
-	Name          string      `json:"name"`
-	Overview      string      `json:"overview"`
-	Id            int         `json:"id"`
-	StillPath     string      `json:"still_path"`
-	VoteAverage   float64     `json:"vote_average"`
-	VoteCount     int         `json:"vote_count"`
-	Files         []FileData  `json:"files"`
-}
-
-//
-// File Data Structure
-//
-type FileData struct {
-	Name string `json:"Name"`
-	Type string `json:"type"`
 }
 
 

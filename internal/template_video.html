@@ -9,19 +9,17 @@
     <body>
         <header>
             <img id="search-image" src="files/search_icon.png">
-            <input id="search-input" type="text" name="" placeholder="What would you like to see?">
-            <p></p>
+            <input id="search-input" type="text" name="" placeholder="What would you like to watch?">
          </header>
          <main>
             <article>
                 <video controls preload="auto">
-                    <source src="films/{{ .Film.File }}"
-                            type="{{ .Type }}">
+                    <source src="media/{{ .File.Path }}"
+                            type="video/{{ .File.Type }}">
                     Sorry, your browser doesn't support embedded videos.
                 </video>
                 <p>{{ .Film.Title }}</p>
                 <p>{{ .Film.ReleaseDate }}</p>
-                <p>{{ .Film.Overview }}</p>
             </article>
         </main>
     </body>
