@@ -158,7 +158,7 @@ func NotOK(resp *http.Response) bool {
 }
 
 //
-// Searches for a film in the TMDB.
+// Searches for a film in the TMDB and downloads its poster and backdrop.
 //
 func FindFilm(
 	client http.Client,
@@ -287,7 +287,7 @@ func FindFilm(
 			DownloadImage(
 				client,
 				results[choice].BackdropPath,
-				path.Join(PICTURE_DIR, results[choice].PosterPath),
+				path.Join(PICTURE_DIR, results[choice].BackdropPath),
 			)
 		} else {
 			log.Println("No Backdrop in database.")
@@ -350,7 +350,7 @@ func MakeTMDBCollectionInfoFile(
 	blob, err = json.MarshalIndent(tmdb, "", JSON_INDENT_TYPE)
 	CheckErr(err)
 
-	collection_path := path.Join(COLLECTION_DIR, tmdb.Name)
+	collection_path := path.Join(COLLECTION_DIR, tmdb.Name + ".json")
 
 	if _, err := os.Stat(collection_path); err == nil {
 		log.Printf("The '%s' collection is already saved.\n", tmdb.Name)

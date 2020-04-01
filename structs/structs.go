@@ -158,11 +158,11 @@ type TMDBGenre struct {
 // Collection Data Structure
 //
 type CollectionData struct {
-	Id           int        `json:"id"`
 	Name         string     `json:"name"`
+	PosterFile   FileData   `json:"poster_file"`
+	BackdropFile FileData   `json:"backdrop_file"`
 	Films        []FilmData `json:"films"`
-	PosterPath   string     `json:"poster_path"`
-	BackdropPath string     `json:"backdrop_path"`
+	TMDBId       int        `json:"tmdb_id"`
 }
 
 //
@@ -277,5 +277,25 @@ func TMDBMovieToFilmData(
 		tmdb_movie.VoteAverage,
 		tmdb_movie.VoteCount,
 		tmdb_movie.Popularity,
+	}
+}
+
+//
+// Converts a TMDBCollection struct to a CollectionData struct
+//
+func TMDBCollectionToCollectionData(
+	tmdb_collection *TMDBCollection,
+	poster_file *FileData,
+	backdrop_file *FileData,
+	films *[]FilmData,
+) (
+	CollectionData,
+) {
+	return CollectionData{
+		tmdb_collection.Name,
+		*poster_file,
+		*backdrop_file,
+		*films,
+		tmdb_collection.Id,
 	}
 }
