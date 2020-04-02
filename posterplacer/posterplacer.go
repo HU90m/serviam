@@ -23,6 +23,7 @@ var EXTENSIONS_TO_MOVE = []string{
 		".mkv",
 		".avi",
 		".srt",
+		".sub",
 }
 
 //
@@ -57,13 +58,17 @@ func CheckDir(path string) {
 	var err error
 
 	info, err = os.Stat(path)
-	if os.IsNotExist(err) {
-		log.Printf("the directory '%s' does not exist.\n", path)
-		log.Printf("making '%s' directory.\n", path)
-		os.MkdirAll(path, 0755)
-	} else {
+	if err == nil {
 		if !info.IsDir() {
 			log.Fatalf("'%s' is not a directory.", path)
+		}
+	} else {
+		if os.IsNotExist(err) {
+			log.Printf("the directory '%s' does not exist.\n", path)
+			log.Printf("making '%s' directory.\n", path)
+			os.MkdirAll(path, 0755)
+		} else {
+			log.Fatal(err)
 		}
 	}
 }
@@ -102,7 +107,7 @@ func MovePicture(
 	new_pic_sub_path := path.Join(new_sub_dir, new_pic_name + pic_ext)
 	new_pic_path := path.Join(media_root, new_pic_sub_path)
 
-	if current_pic_path != "" {
+	if current_pic_name != "" {
 		err = os.Rename(current_pic_path, new_pic_path)
 		CheckErr(err)
 		log.Printf("Moved '%s' to '%s'.\n", current_pic_path, new_pic_path)

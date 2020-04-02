@@ -61,13 +61,17 @@ func CheckDir(path string) {
 	var err error
 
 	info, err = os.Stat(path)
-	if os.IsNotExist(err) {
-		log.Printf("the directory '%s' does not exist.\n", path)
-		log.Printf("making '%s' directory.\n", path)
-		os.MkdirAll(path, 0755)
-	} else {
+	if err == nil {
 		if !info.IsDir() {
 			log.Fatalf("'%s' is not a directory.", path)
+		}
+	} else {
+		if os.IsNotExist(err) {
+			log.Printf("the directory '%s' does not exist.\n", path)
+			log.Printf("making '%s' directory.\n", path)
+			os.MkdirAll(path, 0755)
+		} else {
+			log.Fatal(err)
 		}
 	}
 }
@@ -266,13 +270,19 @@ func FindFilm(
 				"The film '%s' has been selected.\n",
 				results[choice].Title,
 			)
-			DownloadImage(
-				client,
-				results[choice].PosterPath,
-				path.Join(PICTURE_DIR, results[choice].PosterPath),
-			)
-			if DISPLAY_POSTER {
-				DisplayImage(path.Join(PICTURE_DIR, results[choice].PosterPath))
+			if results[choice].PosterPath != "" {
+				DownloadImage(
+					client,
+					results[choice].PosterPath,
+					path.Join(PICTURE_DIR, results[choice].PosterPath),
+				)
+				if DISPLAY_POSTER {
+					DisplayImage(
+						path.Join(PICTURE_DIR, results[choice].PosterPath),
+					)
+				}
+			} else {
+				log.Println("No poster in database.")
 			}
 			if YesOrNo("Do you confirm this is the correct film? (y/n)") {
 				finished = true
@@ -290,7 +300,7 @@ func FindFilm(
 				path.Join(PICTURE_DIR, results[choice].BackdropPath),
 			)
 		} else {
-			log.Println("No Backdrop in database.")
+			log.Println("No backdrop in database.")
 		}
 		return results[choice], true
 	} else {
@@ -374,7 +384,6 @@ func MakeTMDBCollectionInfoFile(
 			)
 		}
 	}
-
 }
 
 //---------------------------------------------------------------------------
@@ -386,6 +395,8 @@ func main() {
 		println("Please provide an API key and some film files to find.")
 		return
 	}
+	var err error
+
 	timeout := time.Duration(TIMEOUT * time.Second)
 	client := http.Client{
 		Timeout: timeout,
@@ -399,20 +410,27 @@ func main() {
 
 		query := strings.TrimSuffix(os.Args[idx], filepath.Ext(os.Args[idx]))
 
-		tmdb_result, film_found := FindFilm(client, api_key, query)
-		if film_found {
-			tmdb_film := MakeTMDBFilmInfoFile(
-				client,
-				api_key,
-				tmdb_result.Id,
-				query + ".json",
-			)
-			if tmdb_film.BelongsToCollection.Name != "" {
-				MakeTMDBCollectionInfoFile(
+		_, err = os.Stat(query + ".json")
+		if os.IsNotExist(err) {
+			tmdb_result, film_found := FindFilm(client, api_key, query)
+			if film_found {
+				tmdb_film := MakeTMDBFilmInfoFile(
 					client,
-					tmdb_film.BelongsToCollection,
+					api_key,
+					tmdb_result.Id,
+					query + ".json",
 				)
+				if tmdb_film.BelongsToCollection.Name != "" {
+					MakeTMDBCollectionInfoFile(
+						client,
+						tmdb_film.BelongsToCollection,
+					)
+				}
 			}
+		} else if err == nil {
+			log.Printf("Skipping '%s' (already has a json file).\n", query)
+		} else {
+			log.Fatal(err)
 		}
 	}
 }

@@ -63,13 +63,13 @@ func CheckErr(e error) {
 // File 
 //
 func FindFileType(
-	files *[]structs.FileData,
+	files []structs.FileData,
 	file_type string,
 ) (
 	structs.FileData,
 ) {
 	var file structs.FileData
-	for _, file = range *files {
+	for _, file = range files {
 		if file.Type == file_type {
 			break
 		}
@@ -116,14 +116,13 @@ func BuildDatabase(
 ) {
 	var err error
 	var blob []byte
-	var film_data structs.FilmData
-	var collection_data structs.CollectionData
 
 	films_dir := path.Join(MEDIA_ROOT, MEDIA_FILMS_DIR)
 	films_dir_files := GetInfoFiles(films_dir)
 
 	for _, file := range films_dir_files {
-		log.Printf("Loading '%s'...\n", file)
+		var film_data structs.FilmData
+		log.Printf("Loading '%s'\n", file)
 		blob, err = ioutil.ReadFile(file)
 		CheckErr(err)
 		err = json.Unmarshal(blob, &film_data)
@@ -135,7 +134,8 @@ func BuildDatabase(
 	collections_dir_files := GetInfoFiles(collections_dir)
 
 	for _, file := range collections_dir_files {
-		log.Printf("Loading '%s'...\n", file)
+		var collection_data structs.CollectionData
+		log.Printf("Loading '%s'\n", file)
 		blob, err = ioutil.ReadFile(file)
 		CheckErr(err)
 		err = json.Unmarshal(blob, &collection_data)
@@ -244,7 +244,6 @@ type WatchHandler struct {
 // Handles /watch requests
 //
 func (data *WatchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-
 	var template_path string
 	var template_values interface{}
 
@@ -254,16 +253,23 @@ func (data *WatchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if video_id != "" {
 		film_idx := FilmFromId(&data.films, video_id)
 
+		log.Printf("Serving '%s' to someone.\n", data.films[film_idx].Title)
+
 		template_path = VIDEO_TEMPLATE_PATH
 		template_values = VideoTemplate{
 			Film: data.films[film_idx],
-			File: FindFileType(&data.films[film_idx].FilmFiles, "mp4"),
+			File: FindFileType(data.films[film_idx].FilmFiles, "mp4"),
 		}
 	} else {
 		var film_results []structs.FilmData
 		if query != "" {
+			log.Printf(
+				"Serving someone the results for the query '%s'.\n",
+				query,
+			)
 			film_results = SearchFilms(&data.films, query)
 		} else {
+			log.Print("Serving someone some random results.\n")
 			film_results = RandomFilms(&data.films, 30)
 		}
 		template_path = RESULTS_TEMPLATE_PATH
