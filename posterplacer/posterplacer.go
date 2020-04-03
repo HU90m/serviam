@@ -8,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 	"serviam/structs"
+	"serviam/common"
 	"strings"
 )
 
@@ -17,13 +18,12 @@ import (
 //
 // miscellaneous
 //
-const JSON_INDENT_TYPE = "\t"
 var EXTENSIONS_TO_MOVE = []string{
-		".mp4",
-		".mkv",
-		".avi",
-		".srt",
-		".sub",
+	".mp4",
+	".mkv",
+	".avi",
+	".srt",
+	".sub",
 }
 
 //
@@ -41,53 +41,6 @@ const (
 //---------------------------------------------------------------------------
 // Functions
 //---------------------------------------------------------------------------
-//
-// Panics if passed an error
-//
-func CheckErr(e error) {
-	if e != nil {
-		log.Fatal(e)
-	}
-}
-
-//
-// Checks a directory exist. If one doesn't, it makes it.
-//
-func CheckDir(path string) {
-	var info os.FileInfo
-	var err error
-
-	info, err = os.Stat(path)
-	if err == nil {
-		if !info.IsDir() {
-			log.Fatalf("'%s' is not a directory.", path)
-		}
-	} else {
-		if os.IsNotExist(err) {
-			log.Printf("the directory '%s' does not exist.\n", path)
-			log.Printf("making '%s' directory.\n", path)
-			os.MkdirAll(path, 0755)
-		} else {
-			log.Fatal(err)
-		}
-	}
-}
-
-//
-// Creates a file containing the bytes given
-//
-func SaveBlob(blob []byte, location string) {
-	var err error
-	var file_p *os.File
-	log.Printf("Saving '%s'...\n", location)
-	file_p, err = os.Create(location)
-	CheckErr(err)
-	_, err = file_p.Write(blob)
-	CheckErr(err)
-	err = file_p.Close()
-	CheckErr(err)
-}
-
 //
 // Move Picture
 //
@@ -109,7 +62,7 @@ func MovePicture(
 
 	if current_pic_name != "" {
 		err = os.Rename(current_pic_path, new_pic_path)
-		CheckErr(err)
+		common.CheckErr(err)
 		log.Printf("Moved '%s' to '%s'.\n", current_pic_path, new_pic_path)
 		pic_file = structs.FileData{
 			new_pic_name + pic_ext,
@@ -129,7 +82,7 @@ func GetFilesToBeMoved(name string) []string {
 	var err error
 
 	files_in_dir, err = ioutil.ReadDir("./")
-	CheckErr(err)
+	common.CheckErr(err)
 
 	for _, f := range files_in_dir {
 		f_name := f.Name()
@@ -164,7 +117,7 @@ func MoveAndMakeFilmData(
 	var poster_file structs.FileData
 	var backdrop_file structs.FileData
 
-	u_title := strings.Replace(tmdb.Title, " ", "_", -1)
+	u_title := common.PosixFileName(strings.Replace(tmdb.Title, " ", "_", -1))
 	id := u_title + "__" + tmdb.ReleaseDate
 
 	// move poster
@@ -193,7 +146,7 @@ func MoveAndMakeFilmData(
 			film_file,
 			path.Join(media_root, sub_dir, file_name),
 		)
-		CheckErr(err)
+		common.CheckErr(err)
 		log.Printf(
 			"Moved '%s' to '%s'.\n",
 			film_file,
@@ -228,22 +181,23 @@ func MoveFilm(
 	var film_data structs.FilmData
 
 	// make id
-	u_title := strings.Replace(tmdb.Title, " ", "_", -1)
+	u_title := common.PosixFileName(strings.Replace(tmdb.Title, " ", "_", -1))
 	id := u_title + "__" + tmdb.ReleaseDate
 
 	// create directory for film
 	sub_dir := path.Join(MEDIA_FILM_DIR, id)
 	film_dir := path.Join(media_root, sub_dir)
-	CheckDir(film_dir)
+	common.CheckDir(film_dir)
 
 	// Move files and film info
 	film_data = MoveAndMakeFilmData(tmdb, tmdb_file, media_root, sub_dir)
 
 	// create info file
-	blob, err = json.MarshalIndent(film_data, "", JSON_INDENT_TYPE)
-	CheckErr(err)
+	blob, err = json.MarshalIndent(film_data, "", common.INDENT)
+	common.CheckErr(err)
 	film_info_file := path.Join(film_dir, id + ".json")
-	SaveBlob(blob, film_info_file)
+	log.Printf("Making '%s'.\n", id + ".json")
+	common.SaveBlob(blob, film_info_file)
 }
 
 //
@@ -259,15 +213,20 @@ func AddFilmToCollection(
 	var collection_data structs.CollectionData
 
 	// find
-	collection := strings.Replace(tmdb.BelongsToCollection.Name, " ", "_", -1)
-	sub_dir := path.Join(MEDIA_COLLECTION_DIR, collection)
-	info_file := path.Join(media_root, sub_dir, collection + ".json")
+	u_name := common.PosixFileName(strings.Replace(
+		tmdb.BelongsToCollection.Name,
+		" ",
+		"_",
+		-1,
+	))
+	sub_dir := path.Join(MEDIA_COLLECTION_DIR, u_name)
+	info_file := path.Join(media_root, sub_dir, u_name + ".json")
 
 	// open collection file
 	blob, err = ioutil.ReadFile(info_file)
-	CheckErr(err)
+	common.CheckErr(err)
 	err = json.Unmarshal(blob, &collection_data)
-	CheckErr(err)
+	common.CheckErr(err)
 
 	// add film data to collection info file and move file files
 	collection_data.Films = append(
@@ -276,9 +235,10 @@ func AddFilmToCollection(
 	)
 
 	// create info file
-	blob, err = json.MarshalIndent(collection_data, "", JSON_INDENT_TYPE)
-	CheckErr(err)
-	SaveBlob(blob, info_file)
+	blob, err = json.MarshalIndent(collection_data, "", common.INDENT)
+	common.CheckErr(err)
+	log.Printf("Adding film to '%s'.\n", u_name + ".json")
+	common.SaveBlob(blob, info_file)
 }
 
 //
@@ -296,10 +256,10 @@ func MoveAndMakeCollection (
 	var collection_data structs.CollectionData
 
 	// create collection directory
-	u_name := strings.Replace(tmdb.Name, " ", "_", -1)
+	u_name := common.PosixFileName(strings.Replace(tmdb.Name, " ", "_", -1))
 	sub_dir := path.Join(MEDIA_COLLECTION_DIR, u_name)
 	collection_dir := path.Join(media_root, sub_dir)
-	CheckDir(collection_dir)
+	common.CheckDir(collection_dir)
 
 	// move poster
 	poster_file = MovePicture(
@@ -327,9 +287,10 @@ func MoveAndMakeCollection (
 
 	// saves collection info file
 	collection_info_file := path.Join(collection_dir, u_name + ".json")
-	blob, err = json.MarshalIndent(collection_data, "", JSON_INDENT_TYPE)
-	CheckErr(err)
-	SaveBlob(blob, collection_info_file)
+	blob, err = json.MarshalIndent(collection_data, "", common.INDENT)
+	common.CheckErr(err)
+	log.Printf("Making '%s'.\n", u_name + ".json")
+	common.SaveBlob(blob, collection_info_file)
 }
 
 //
@@ -344,9 +305,9 @@ func ProcessFilm(
 	var tmdb_film structs.TMDBMovie
 
 	blob, err = ioutil.ReadFile(tmdb_file)
-	CheckErr(err)
+	common.CheckErr(err)
 	err = json.Unmarshal(blob, &tmdb_film)
-	CheckErr(err)
+	common.CheckErr(err)
 
 	if tmdb_film.BelongsToCollection.Name == "" {
 		MoveFilm(
@@ -355,12 +316,12 @@ func ProcessFilm(
 			tmdb_film,
 		)
 	} else {
-		u_name := strings.Replace(
+		u_name := common.PosixFileName(strings.Replace(
 			tmdb_film.BelongsToCollection.Name,
 			" ",
 			"_",
 			-1,
-		)
+		))
 		collection_dir := path.Join(media_root, MEDIA_COLLECTION_DIR, u_name)
 
 		if _, err = os.Stat(collection_dir); err == nil {
@@ -378,7 +339,7 @@ func ProcessFilm(
 				tmdb_film.BelongsToCollection,
 			)
 		} else {
-			CheckErr(err)
+			common.CheckErr(err)
 		}
 		AddFilmToCollection(
 			media_root,
@@ -400,10 +361,10 @@ func main() {
 	}
 	media_root := os.Args[1]
 
-	CheckDir(media_root)
-	CheckDir(MOVED_DIR)
-	CheckDir(PICTURE_DIR)
-	CheckDir(COLLECTION_DIR)
+	common.CheckDir(media_root)
+	common.CheckDir(MOVED_DIR)
+	common.CheckDir(PICTURE_DIR)
+	common.CheckDir(COLLECTION_DIR)
 
 	for idx := 2; idx < len(os.Args); idx++ {
 
@@ -420,7 +381,7 @@ func main() {
 			)
 			new_location := path.Join(MOVED_DIR, os.Args[idx])
 			err := os.Rename(os.Args[idx], new_location)
-			CheckErr(err)
+			common.CheckErr(err)
 			log.Printf("Moved '%s' to '%s'.\n", os.Args[idx], new_location)
 		}
 	}

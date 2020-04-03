@@ -9,8 +9,8 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"serviam/structs"
+	"serviam/common"
 	"path"
 	"path/filepath"
 	"strings"
@@ -26,7 +26,6 @@ import (
 //
 const TIMEOUT = 30
 const DISPLAY_POSTER = true
-const JSON_INDENT_TYPE = "\t"
 const PICTURE_DIR = "pictures"
 const COLLECTION_DIR = "collections"
 
@@ -45,64 +44,6 @@ const IMAGE_URL = "https://image.tmdb.org/t/p/original"
 // Functions
 //---------------------------------------------------------------------------
 //
-// Panics if passed an error
-//
-func CheckErr(e error) {
-	if e != nil {
-		log.Fatal(e)
-	}
-}
-
-//
-// Checks a directory exist. If one doesn't, it makes it.
-//
-func CheckDir(path string) {
-	var info os.FileInfo
-	var err error
-
-	info, err = os.Stat(path)
-	if err == nil {
-		if !info.IsDir() {
-			log.Fatalf("'%s' is not a directory.", path)
-		}
-	} else {
-		if os.IsNotExist(err) {
-			log.Printf("the directory '%s' does not exist.\n", path)
-			log.Printf("making '%s' directory.\n", path)
-			os.MkdirAll(path, 0755)
-		} else {
-			log.Fatal(err)
-		}
-	}
-}
-
-//
-// Creates a file containing the bytes given
-//
-func SaveBlob(blob []byte, location string) {
-	var err error
-	var file_p *os.File
-	file_p, err = os.Create(location)
-	CheckErr(err)
-	_, err = file_p.Write(blob)
-	CheckErr(err)
-	err = file_p.Close()
-	CheckErr(err)
-}
-
-//
-// Displays Image using sxiv
-//
-func DisplayImage(image_location string) {
-	var cmd *exec.Cmd
-	log.Printf("Displaying '%s'.\n", image_location)
-	cmd = exec.Command("sxiv", image_location)
-	bytes, err := cmd.CombinedOutput()
-	os.Stdout.Write(bytes)
-	CheckErr(err)
-}
-
-//
 // Downloads an image from the TMDB site.
 //
 func DownloadImage(client http.Client, tmdb_img string, location string) {
@@ -111,15 +52,15 @@ func DownloadImage(client http.Client, tmdb_img string, location string) {
 
 	// open file
 	file, err := os.Create(location)
-	CheckErr(err)
+	common.CheckErr(err)
 	defer file.Close()
 	// download image
 	resp, err := client.Get(url)
-	CheckErr(err)
+	common.CheckErr(err)
 	defer resp.Body.Close()
 	// save image
 	size, err := io.Copy(file, resp.Body)
-	CheckErr(err)
+	common.CheckErr(err)
 	log.Printf("Downloaded '%s' of size %d.\n", location, size)
 }
 
@@ -135,7 +76,7 @@ func YesOrNo(question string) bool {
 	fmt.Println(question)
 	for {
 		y_or_n, err = stdin_reader.ReadString('\n')
-		CheckErr(err)
+		common.CheckErr(err)
 		y_or_n = strings.Trim(y_or_n, "\n")
 		switch y_or_n {
 		case "n":
@@ -153,7 +94,7 @@ func NotOK(resp *http.Response) bool {
 		log.Printf("Status Code: %d\n", resp.StatusCode)
 		defer resp.Body.Close()
 		body_bytes, err := ioutil.ReadAll(resp.Body)
-		CheckErr(err)
+		common.CheckErr(err)
 		log.Printf("Response Body:\n%s\n", string(body_bytes))
 		return true
 	} else {
@@ -190,7 +131,7 @@ func FindFilm(
 		if change_query {
 			log.Println("Type your new query and press enter:")
 			query, err = stdin_reader.ReadString('\n')
-			CheckErr(err)
+			common.CheckErr(err)
 			query = strings.Trim(query, "\n")
 			change_query = false
 		}
@@ -208,13 +149,13 @@ func FindFilm(
 
 			log.Printf("Searching the TMDB data base for '%s'.\n", query)
 			resp, err := client.Get(url)
-			CheckErr(err)
+			common.CheckErr(err)
 			if NotOK(resp) {
 				return structs.TMDBMovieSearchResult{}, false
 			}
 			defer resp.Body.Close()
 			body_bytes, err := ioutil.ReadAll(resp.Body)
-			CheckErr(err)
+			common.CheckErr(err)
 			err = json.Unmarshal(body_bytes, &tmdb)
 			if err != nil {
 				log.Printf("Error decoding search response: %v\n", err)
@@ -277,7 +218,7 @@ func FindFilm(
 					path.Join(PICTURE_DIR, results[choice].PosterPath),
 				)
 				if DISPLAY_POSTER {
-					DisplayImage(
+					common.DisplayImage(
 						path.Join(PICTURE_DIR, results[choice].PosterPath),
 					)
 				}
@@ -326,23 +267,23 @@ func MakeTMDBFilmInfoFile(
 	log.Println("Getting Film Data.")
 	url := MOVIE_GET_URL + strconv.Itoa(id) + "?api_key=" + api_key
 	resp, err := client.Get(url)
-	CheckErr(err)
+	common.CheckErr(err)
 	if NotOK(resp) {
 		return tmdb
 	}
 	defer resp.Body.Close()
 	blob, err = ioutil.ReadAll(resp.Body)
-	CheckErr(err)
+	common.CheckErr(err)
 
 	// indent blob
 	err = json.Unmarshal(blob, &tmdb)
-	CheckErr(err)
-	blob, err = json.MarshalIndent(tmdb, "", JSON_INDENT_TYPE)
-	CheckErr(err)
+	common.CheckErr(err)
+	blob, err = json.MarshalIndent(tmdb, "", common.INDENT)
+	common.CheckErr(err)
 
 	// save blob
 	log.Println("Saving Film Data.")
-	SaveBlob(blob, file_path)
+	common.SaveBlob(blob, file_path)
 
 	return tmdb
 }
@@ -357,17 +298,18 @@ func MakeTMDBCollectionInfoFile(
 	var blob []byte
 	var err error
 
-	blob, err = json.MarshalIndent(tmdb, "", JSON_INDENT_TYPE)
-	CheckErr(err)
+	blob, err = json.MarshalIndent(tmdb, "", common.INDENT)
+	common.CheckErr(err)
 
-	collection_path := path.Join(COLLECTION_DIR, tmdb.Name + ".json")
+	collection_name := common.PosixFileName(tmdb.Name)
+	collection_path := path.Join(COLLECTION_DIR, collection_name + ".json")
 
 	if _, err := os.Stat(collection_path); err == nil {
-		log.Printf("The '%s' collection is already saved.\n", tmdb.Name)
+		log.Printf("The '%s' collection is already saved.\n", collection_name)
 
 	} else if os.IsNotExist(err) {
-		log.Printf("Saving the '%s' collection.\n", tmdb.Name)
-		SaveBlob(blob, collection_path)
+		log.Printf("Saving the '%s' collection.\n", collection_name)
+		common.SaveBlob(blob, collection_path)
 
 		if tmdb.PosterPath != "" {
 			DownloadImage(
@@ -402,8 +344,8 @@ func main() {
 		Timeout: timeout,
 	}
 
-	CheckDir(PICTURE_DIR)
-	CheckDir(COLLECTION_DIR)
+	common.CheckDir(PICTURE_DIR)
+	common.CheckDir(COLLECTION_DIR)
 
 	api_key := os.Args[1]
 	for idx := 2; idx < len(os.Args); idx++ {
