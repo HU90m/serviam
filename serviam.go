@@ -11,6 +11,7 @@ import (
 	"path"
 	"strings"
 	"serviam/structs"
+	"serviam/common"
 )
 
 
@@ -51,16 +52,8 @@ type ResultsTemplate struct {
 // Functions
 //---------------------------------------------------------------------------
 //
-// Panics if an error has occurred.
-//
-func CheckErr(e error) {
-	if e != nil {
-		log.Fatal(e)
-	}
-}
-
-//
-// File 
+// finds a file of a certain type, in a slice of FileData
+// if it can't find the given type it returns empty FileData
 //
 func FindFileType(
 	files []structs.FileData,
@@ -86,7 +79,7 @@ func GetInfoFiles(directory string) []string {
 	var files_slice []os.FileInfo
 
 	files_slice, err = ioutil.ReadDir(directory)
-	CheckErr(err)
+	common.CheckErr(err)
 
 	for _, file := range files_slice {
 		if file.IsDir() {
@@ -100,7 +93,7 @@ func GetInfoFiles(directory string) []string {
 			} else if os.IsNotExist(err) {
 				log.Printf("'%s' doesn't exist.\n", json_path)
 			} else {
-				CheckErr(err)
+				common.CheckErr(err)
 			}
 		}
 	}
@@ -124,9 +117,9 @@ func BuildDatabase(
 		var film_data structs.FilmData
 		log.Printf("Loading '%s'\n", file)
 		blob, err = ioutil.ReadFile(file)
-		CheckErr(err)
+		common.CheckErr(err)
 		err = json.Unmarshal(blob, &film_data)
-		CheckErr(err)
+		common.CheckErr(err)
 		*films = append(*films, film_data)
 	}
 
@@ -137,9 +130,9 @@ func BuildDatabase(
 		var collection_data structs.CollectionData
 		log.Printf("Loading '%s'\n", file)
 		blob, err = ioutil.ReadFile(file)
-		CheckErr(err)
+		common.CheckErr(err)
 		err = json.Unmarshal(blob, &collection_data)
-		CheckErr(err)
+		common.CheckErr(err)
 		*collections = append(*collections, collection_data)
 		*films = append(*films, collection_data.Films...)
 	}
@@ -278,9 +271,9 @@ func (data *WatchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	t, err := template.ParseFiles(template_path)
-	CheckErr(err)
+	common.CheckErr(err)
 	err = t.Execute(w, template_values)
-	CheckErr(err)
+	common.CheckErr(err)
 }
 
 
