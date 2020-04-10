@@ -1,19 +1,18 @@
 package main
 
 import (
-	"log"
 	"encoding/json"
 	"html/template"
-	"os"
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"path"
-	"strings"
-	"serviam/structs"
 	"serviam/common"
+	"serviam/structs"
+	"strings"
 )
-
 
 //---------------------------------------------------------------------------
 // Constants
@@ -22,13 +21,12 @@ import (
 // directories
 //
 const (
-	MEDIA_ROOT = "media"
-	MEDIA_FILMS_DIR = "films"
+	MEDIA_ROOT            = "media"
+	MEDIA_FILMS_DIR       = "films"
 	MEDIA_COLLECTIONS_DIR = "collections"
-	VIDEO_TEMPLATE_PATH = "internal/template_video.html"
+	VIDEO_TEMPLATE_PATH   = "internal/template_video.html"
 	RESULTS_TEMPLATE_PATH = "internal/template_results.html"
 )
-
 
 //---------------------------------------------------------------------------
 // Structures
@@ -45,7 +43,7 @@ type VideoTemplate struct {
 // Holds values required by the results template.
 //
 type ResultsTemplate struct {
-	Films   []structs.FilmData
+	Films []structs.FilmData
 }
 
 //---------------------------------------------------------------------------
@@ -58,9 +56,7 @@ type ResultsTemplate struct {
 func FindFileType(
 	files []structs.FileData,
 	file_type string,
-) (
-	structs.FileData,
-) {
+) structs.FileData {
 	var file structs.FileData
 	for _, file = range files {
 		if file.Type == file_type {
@@ -86,7 +82,7 @@ func GetInfoFiles(directory string) []string {
 			json_path := path.Join(
 				directory,
 				file.Name(),
-				file.Name() + ".json",
+				file.Name()+".json",
 			)
 			if _, err := os.Stat(json_path); err == nil {
 				output = append(output, json_path)
@@ -105,6 +101,7 @@ func GetInfoFiles(directory string) []string {
 //
 func BuildDatabase(
 	films *[]structs.FilmData,
+	lonely_films *[]structs.FilmData,
 	collections *[]structs.CollectionData,
 ) {
 	var err error
@@ -122,6 +119,8 @@ func BuildDatabase(
 		common.CheckErr(err)
 		*films = append(*films, film_data)
 	}
+
+	*lonely_films = *films
 
 	collections_dir := path.Join(MEDIA_ROOT, MEDIA_COLLECTIONS_DIR)
 	collections_dir_files := GetInfoFiles(collections_dir)
@@ -159,20 +158,37 @@ func FilmFromId(films *[]structs.FilmData, id string) int {
 // Returns a films which have matched the search pattern.
 //
 func SearchFilms(
-	films *[]structs.FilmData,
+	lonely_films *[]structs.FilmData,
+	collections *[]structs.CollectionData,
 	pattern string,
-) (
-	[]structs.FilmData,
-) {
+) []structs.FilmData {
 	var film structs.FilmData
+	var collection structs.CollectionData
 	var output []structs.FilmData
 
-	for _, film = range *films {
+	for _, film = range *lonely_films {
 		if strings.Contains(
 			strings.ToLower(film.Title),
 			strings.ToLower(pattern),
 		) {
 			output = append(output, film)
+		}
+	}
+	for _, collection = range *collections {
+		if strings.Contains(
+			strings.ToLower(collection.Name),
+			strings.ToLower(pattern),
+		) {
+			output = append(output, collection.Films...)
+		} else {
+			for _, film = range collection.Films {
+				if strings.Contains(
+					strings.ToLower(film.Title),
+					strings.ToLower(pattern),
+				) {
+					output = append(output, film)
+				}
+			}
 		}
 	}
 	return output
@@ -184,9 +200,7 @@ func SearchFilms(
 func RandomFilms(
 	films *[]structs.FilmData,
 	num_results int,
-) (
-	[]structs.FilmData,
-) {
+) []structs.FilmData {
 	var random_idx int
 	var prior_idxs []int
 	var output []structs.FilmData
@@ -220,7 +234,6 @@ func RootHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "watch", http.StatusSeeOther)
 }
 
-
 //---------------------------------------------------------------------------
 // Watch Handler
 //---------------------------------------------------------------------------
@@ -228,9 +241,10 @@ func RootHandler(w http.ResponseWriter, r *http.Request) {
 // Holds data for /watch requests
 //
 type WatchHandler struct {
-	media_root  string
-	films       []structs.FilmData
-	collections []structs.CollectionData
+	media_root   string
+	films        []structs.FilmData
+	lonely_films []structs.FilmData
+	collections  []structs.CollectionData
 }
 
 //
@@ -260,7 +274,11 @@ func (data *WatchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				"Serving someone the results for the query '%s'.\n",
 				query,
 			)
-			film_results = SearchFilms(&data.films, query)
+			film_results = SearchFilms(
+				&data.lonely_films,
+				&data.collections,
+				query,
+			)
 		} else {
 			log.Print("Serving someone some random results.\n")
 			film_results = RandomFilms(&data.films, 30)
@@ -276,7 +294,6 @@ func (data *WatchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	common.CheckErr(err)
 }
 
-
 //---------------------------------------------------------------------------
 // Main
 //---------------------------------------------------------------------------
@@ -284,7 +301,11 @@ func (data *WatchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func main() {
 	watch_handler := new(WatchHandler)
 
-	BuildDatabase(&watch_handler.films, &watch_handler.collections)
+	BuildDatabase(
+		&watch_handler.films,
+		&watch_handler.lonely_films,
+		&watch_handler.collections,
+	)
 	log.Printf("Loaded %d Collecions.\n", len(watch_handler.collections))
 	log.Printf("Loaded %d Films.\n", len(watch_handler.films))
 
