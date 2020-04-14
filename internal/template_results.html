@@ -12,16 +12,20 @@
             <input id="search-input" type="text" name="" placeholder="What would you like to watch?">
          </header>
          <main>
-            {{ range $idx, $film := .Films}}
-                <a class="film_item" HREF="watch?v={{ $film.Id }}">
-                    <img src="media/{{ $film.PosterFile.Path }}">
-					<div>
-						<p><b>{{$film.Title}}</b></p>
-						<p>{{$film.Tagline}}</p>
-						<p>{{$film.ReleaseDate}}</p>
-						<p>{{$film.VoteAverage}} ({{$film.VoteCount}})</p>
-					</div>
-                </a>
+            {{ range $idx, $film := $.Films}}
+            {{ if index $.Watchable $idx }}
+            <a class="watchable_film_item" HREF="watch?v={{ $film.Id }}">
+            {{ else }}
+            <a class="non-watchable_film_item" HREF="watch?v={{ $film.Id }}">
+            {{ end }}
+                <img src="media/{{ $film.PosterFile.Path }}">
+                <div>
+                    <p class="film_title"><b>{{$film.Title}}</b></p>
+                    <p>{{$film.ReleaseDate}}</p>
+                    <p>{{$film.VoteAverage}} ({{$film.VoteCount}})</p>
+                    <p>{{$film.Tagline}}</p>
+                </div>
+            </a>
             {{ end }}
         </main>
     </body>

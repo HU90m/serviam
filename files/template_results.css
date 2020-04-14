@@ -32,7 +32,7 @@ main {
     grid-auto-rows: auto;
     text-align: center;
 }
-.film_item {
+.watchable_film_item {
     display: flex;
     flex-flow: column;
     background: #222222;
@@ -40,16 +40,27 @@ main {
     font-weight: normal;
     color: white;
 }
-.film_item > img {
+.non-watchable_film_item {
+    display: flex;
+    flex-flow: column;
+    background: #E53935;
+    text-decoration: none;
+    font-weight: normal;
+    color: #cccccc;
+}
+main > a > img {
     width: 100%;
     align-self: center;
 }
-.film_item > div {
+main > a > div {
     width: 100%;
 	margin-top: 0.25rem;
     align-self: center;
 }
-.film_item > div > p {
+.film_title {
+	height: 2.4rem;
+}
+main > a > div > p {
     width: 100%;
 	margin-top: 0.25rem;
 	margin-bottom: 0.25rem;

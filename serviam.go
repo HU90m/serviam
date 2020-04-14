@@ -43,7 +43,8 @@ type VideoTemplate struct {
 // Holds values required by the results template.
 //
 type ResultsTemplate struct {
-	Films []structs.FilmData
+	Films     []structs.FilmData
+	Watchable []bool
 }
 
 //---------------------------------------------------------------------------
@@ -56,14 +57,17 @@ type ResultsTemplate struct {
 func FindFileType(
 	files []structs.FileData,
 	file_type string,
-) structs.FileData {
+) (
+	structs.FileData,
+	bool,
+) {
 	var file structs.FileData
 	for _, file = range files {
 		if file.Type == file_type {
-			break
+			return file, true
 		}
 	}
-	return file
+	return file, false
 }
 
 //
@@ -262,13 +266,15 @@ func (data *WatchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		log.Printf("Serving '%s' to someone.\n", data.films[film_idx].Title)
 
+		film_file, _ := FindFileType(data.films[film_idx].FilmFiles, "mp4")
 		template_path = VIDEO_TEMPLATE_PATH
 		template_values = VideoTemplate{
 			Film: data.films[film_idx],
-			File: FindFileType(data.films[film_idx].FilmFiles, "mp4"),
+			File: film_file,
 		}
 	} else {
 		var film_results []structs.FilmData
+		var results_watchable []bool
 		if query != "" {
 			log.Printf(
 				"Serving someone the results for the query '%s'.\n",
@@ -283,9 +289,14 @@ func (data *WatchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			log.Print("Serving someone some random results.\n")
 			film_results = RandomFilms(&data.films, 30)
 		}
+		for _, film := range film_results {
+			_, watchable := FindFileType(film.FilmFiles, "mp4")
+			results_watchable = append(results_watchable, watchable)
+		}
 		template_path = RESULTS_TEMPLATE_PATH
 		template_values = ResultsTemplate{
-			Films: film_results,
+			Films:     film_results,
+			Watchable: results_watchable,
 		}
 	}
 	t, err := template.ParseFiles(template_path)
