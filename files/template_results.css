@@ -13,6 +13,7 @@ header {
     display: grid;
     background: white;
     padding: 0.5rem;
+    width: 100vw;
     grid-template-columns: 2rem 1fr;
 }
 #search-image {
@@ -23,6 +24,22 @@ header {
     border: none;
     padding: 0.25rem;
 }
+footer {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 100vw;
+    padding: 0.5rem;
+    background: white;
+    text-align: center;
+}
+#more-image {
+    width: 2rem;
+    height: 2rem;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
 main {
     display: grid;
     margin-left: 1rem;
@@ -31,6 +48,7 @@ main {
     grid-gap: 0.5rem;
     grid-auto-rows: auto;
     text-align: center;
+    padding-bottom: 4rem;
 }
 .watchable_film_item {
     display: flex;
@@ -56,9 +74,6 @@ main > a > div {
     width: 100%;
 	margin-top: 0.25rem;
     align-self: center;
-}
-.film_title {
-	height: 2.4rem;
 }
 main > a > div > p {
     width: 100%;

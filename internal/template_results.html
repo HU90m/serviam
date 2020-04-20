@@ -10,8 +10,8 @@
         <header>
             <img id="search-image" src="files/search_icon.png">
             <input id="search-input" type="text" name="" placeholder="What would you like to watch?">
-         </header>
-         <main>
+        </header>
+        <main id="hello">
             {{ range $idx, $film := $.Films}}
             {{ if index $.Watchable $idx }}
             <a class="watchable_film_item" HREF="watch?v={{ $film.Id }}">
@@ -20,29 +20,15 @@
             {{ end }}
                 <img src="media/{{ $film.PosterFile.Path }}">
                 <div>
-                    <p class="film_title"><b>{{$film.Title}}</b></p>
+                    <p><b>{{$film.Title}}</b></p>
                     <p>{{$film.ReleaseDate}}</p>
-                    <p>{{$film.VoteAverage}} ({{$film.VoteCount}})</p>
-                    <p>{{$film.Tagline}}</p>
                 </div>
             </a>
             {{ end }}
         </main>
+        <footer>
+            <img id="more-image" src="files/more_icon.png">
+        </footer>
     </body>
-    <script type="text/javascript">
-        const search_input = document.getElementById("search-input");
-        const search_image = document.getElementById("search-image");
-
-        search_input.addEventListener('keyup', InputHandler);
-        search_image.addEventListener('click', ImageHandler);
-
-        function InputHandler (key_event) {
-            if (event.keyCode === 13) {
-                window.location.replace("?q="+search_input.value);
-            }
-        }
-        function ImageHandler () {
-            window.location.replace("?q="+search_input.value);
-        }
-    </script>
+    <script type="text/javascript" src="files/results.js"></script>
 </html>

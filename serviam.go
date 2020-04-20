@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"encoding/xml"
 	"html/template"
 	"io/ioutil"
 	"log"
@@ -45,6 +46,26 @@ type VideoTemplate struct {
 type ResultsTemplate struct {
 	Films     []structs.FilmData
 	Watchable []bool
+}
+
+//
+// XML films structure
+//
+type XMLFilms struct {
+	XMLName xml.Name `xml:"films"`
+	Films   []XMLFilm   `xml:"film"`
+}
+
+//
+// XML film structure
+//
+type XMLFilm struct {
+	XMLName     xml.Name `xml:"film"`
+	Watchable   bool     `xml:"watchable,attr"`
+	Id          string   `xml:"id"`
+	Title       string   `xml:"title"`
+	ReleaseDate string   `xml:"release_date"`
+	Poster      string   `xml:"poster"`
 }
 
 //---------------------------------------------------------------------------
@@ -98,6 +119,23 @@ func GetInfoFiles(directory string) []string {
 		}
 	}
 	return output
+}
+
+//
+// makes an xml structure from a list of films
+//
+func MakeXML(films []structs.FilmData) XMLFilms {
+    var xml_films XMLFilms
+    xml_films.Films = make([]XMLFilm, len(films))
+
+    for idx, film := range films {
+        xml_films.Films[idx].Id = film.Id
+        xml_films.Films[idx].Title = film.Title
+        xml_films.Films[idx].ReleaseDate = film.ReleaseDate
+        xml_films.Films[idx].Poster = film.PosterFile.Path
+        _, xml_films.Films[idx].Watchable = FindFileType(film.FilmFiles, "mp4")
+    }
+    return xml_films
 }
 
 //
@@ -203,31 +241,23 @@ func SearchFilms(
 //
 func RandomFilms(
 	films *[]structs.FilmData,
-	num_results int,
+    //seed  int64,
+    num_films  int,
 ) []structs.FilmData {
-	var random_idx int
-	var prior_idxs []int
 	var output []structs.FilmData
+	var perm []int
 
-	num_films := len(*films)
+    //output = make([]structs.FilmData, len(*films))
 
-	if num_films < num_results {
-		output = *films
-	} else {
-		for len(output) < num_results {
-			idx_used := false
-			random_idx = rand.Intn(num_films)
-			for _, prior_idx := range prior_idxs {
-				if random_idx == prior_idx {
-					idx_used = true
-				}
-			}
-			if !idx_used {
-				prior_idxs = append(prior_idxs, random_idx)
-				output = append(output, (*films)[random_idx])
-			}
-		}
-	}
+    //rand.Seed(seed)
+    //perm = rand.Perm(len(*films))
+
+    output = make([]structs.FilmData, num_films)
+    perm = rand.Perm(num_films)
+
+    for i, v := range perm {
+        output[v] = (*films)[i]
+    }
 	return output
 }
 
@@ -260,49 +290,59 @@ func (data *WatchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	video_id := r.FormValue("v")
 	query := r.FormValue("q")
+	xml_q := r.FormValue("x")
 
-	if video_id != "" {
-		film_idx := FilmFromId(&data.films, video_id)
+    if xml_q != "" {
+        w.Header().Add("Content-Type", "application/xml; charset=utf-8")
+        tmp := MakeXML(data.films[0:5])
+        blob, err := xml.Marshal(tmp)
+        common.CheckErr(err)
+        _, err = w.Write(blob)
+        common.CheckErr(err)
+    } else {
+        if video_id != "" {
+            film_idx := FilmFromId(&data.films, video_id)
 
-		log.Printf("Serving '%s' to someone.\n", data.films[film_idx].Title)
+            log.Printf("Serving '%s' to someone.\n", data.films[film_idx].Title)
 
-		film_file, _ := FindFileType(data.films[film_idx].FilmFiles, "mp4")
-		template_path = VIDEO_TEMPLATE_PATH
-		template_values = VideoTemplate{
-			Film: data.films[film_idx],
-			File: film_file,
-		}
-	} else {
-		var film_results []structs.FilmData
-		var results_watchable []bool
-		if query != "" {
-			log.Printf(
-				"Serving someone the results for the query '%s'.\n",
-				query,
-			)
-			film_results = SearchFilms(
-				&data.lonely_films,
-				&data.collections,
-				query,
-			)
-		} else {
-			log.Print("Serving someone some random results.\n")
-			film_results = RandomFilms(&data.films, 30)
-		}
-		for _, film := range film_results {
-			_, watchable := FindFileType(film.FilmFiles, "mp4")
-			results_watchable = append(results_watchable, watchable)
-		}
-		template_path = RESULTS_TEMPLATE_PATH
-		template_values = ResultsTemplate{
-			Films:     film_results,
-			Watchable: results_watchable,
-		}
-	}
-	t, err := template.ParseFiles(template_path)
-	common.CheckErr(err)
-	err = t.Execute(w, template_values)
-	common.CheckErr(err)
+            film_file, _ := FindFileType(data.films[film_idx].FilmFiles, "mp4")
+            template_path = VIDEO_TEMPLATE_PATH
+            template_values = VideoTemplate{
+                Film: data.films[film_idx],
+                File: film_file,
+            }
+        } else {
+            var film_results []structs.FilmData
+            var results_watchable []bool
+            if query != "" {
+                log.Printf(
+                    "Serving someone the results for the query '%s'.\n",
+                    query,
+                )
+                film_results = SearchFilms(
+                    &data.lonely_films,
+                    &data.collections,
+                    query,
+                )
+            } else {
+                log.Print("Serving someone some random results.\n")
+                film_results = RandomFilms(&data.films, 3)
+            }
+            for _, film := range film_results {
+                _, watchable := FindFileType(film.FilmFiles, "mp4")
+                results_watchable = append(results_watchable, watchable)
+            }
+            template_path = RESULTS_TEMPLATE_PATH
+            template_values = ResultsTemplate{
+                Films:     film_results,
+                Watchable: results_watchable,
+            }
+        }
+        t, err := template.ParseFiles(template_path)
+        common.CheckErr(err)
+        err = t.Execute(w, template_values)
+        common.CheckErr(err)
+    }
 }
 
 //---------------------------------------------------------------------------
