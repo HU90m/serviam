@@ -13,6 +13,7 @@ import (
 	"serviam/common"
 	"serviam/structs"
 	"strings"
+	"strconv"
 )
 
 //---------------------------------------------------------------------------
@@ -265,7 +266,7 @@ func RandomFilms(
 // Handles root requests.
 //
 func RootHandler(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, "watch", http.StatusSeeOther)
+	http.Redirect(w, r, "search", http.StatusSeeOther)
 }
 
 //---------------------------------------------------------------------------
@@ -284,64 +285,105 @@ type WatchHandler struct {
 //
 // Handles /watch requests
 //
-func (data *WatchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (data *WatchHandler) HandleWatch(w http.ResponseWriter, r *http.Request) {
+	var template_path string
+	var template_values interface{}
+    var film_idx int
+
+	video_id := r.FormValue("v")
+
+    if video_id != "" {
+        film_idx = FilmFromId(&data.films, video_id)
+    } else {
+        film_idx = 0
+    }
+
+    log.Printf("Serving '%s' to someone.\n", data.films[film_idx].Title)
+
+    film_file, _ := FindFileType(data.films[film_idx].FilmFiles, "mp4")
+    template_path = VIDEO_TEMPLATE_PATH
+    template_values = VideoTemplate{
+        Film: data.films[film_idx],
+        File: film_file,
+    }
+
+    t, err := template.ParseFiles(template_path)
+    common.CheckErr(err)
+    err = t.Execute(w, template_values)
+    common.CheckErr(err)
+}
+
+//
+// Handles /search requests
+//
+func (data *WatchHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 	var template_path string
 	var template_values interface{}
 
-	video_id := r.FormValue("v")
 	query := r.FormValue("q")
-	xml_q := r.FormValue("x")
 
-    if xml_q != "" {
-        w.Header().Add("Content-Type", "application/xml; charset=utf-8")
-        tmp := MakeXML(data.films[0:5])
-        blob, err := xml.Marshal(tmp)
-        common.CheckErr(err)
-        _, err = w.Write(blob)
-        common.CheckErr(err)
+    var film_results []structs.FilmData
+    var results_watchable []bool
+    if query != "" {
+        log.Printf(
+            "Serving someone the results for the query '%s'.\n",
+            query,
+        )
+        film_results = SearchFilms(
+            &data.lonely_films,
+            &data.collections,
+            query,
+        )
     } else {
-        if video_id != "" {
-            film_idx := FilmFromId(&data.films, video_id)
+        log.Print("Serving someone some random results.\n")
+        film_results = RandomFilms(&data.films, 3)
+    }
+    for _, film := range film_results {
+        _, watchable := FindFileType(film.FilmFiles, "mp4")
+        results_watchable = append(results_watchable, watchable)
+    }
+    template_path = RESULTS_TEMPLATE_PATH
+    template_values = ResultsTemplate{
+        Films:     film_results,
+        Watchable: results_watchable,
+    }
+    t, err := template.ParseFiles(template_path)
+    common.CheckErr(err)
+    err = t.Execute(w, template_values)
+    common.CheckErr(err)
+}
 
-            log.Printf("Serving '%s' to someone.\n", data.films[film_idx].Title)
+//
+// Handles /xml requests
+//
+func (data *WatchHandler) HandleXML(w http.ResponseWriter, r *http.Request) {
+    var err error
+    var first, last int
 
-            film_file, _ := FindFileType(data.films[film_idx].FilmFiles, "mp4")
-            template_path = VIDEO_TEMPLATE_PATH
-            template_values = VideoTemplate{
-                Film: data.films[film_idx],
-                File: film_file,
-            }
-        } else {
-            var film_results []structs.FilmData
-            var results_watchable []bool
-            if query != "" {
-                log.Printf(
-                    "Serving someone the results for the query '%s'.\n",
-                    query,
-                )
-                film_results = SearchFilms(
-                    &data.lonely_films,
-                    &data.collections,
-                    query,
-                )
-            } else {
-                log.Print("Serving someone some random results.\n")
-                film_results = RandomFilms(&data.films, 3)
-            }
-            for _, film := range film_results {
-                _, watchable := FindFileType(film.FilmFiles, "mp4")
-                results_watchable = append(results_watchable, watchable)
-            }
-            template_path = RESULTS_TEMPLATE_PATH
-            template_values = ResultsTemplate{
-                Films:     film_results,
-                Watchable: results_watchable,
-            }
-        }
-        t, err := template.ParseFiles(template_path)
-        common.CheckErr(err)
-        err = t.Execute(w, template_values)
-        common.CheckErr(err)
+	first, err = strconv.Atoi(r.FormValue("f"))
+    common.CheckErr(err)
+	last, err = strconv.Atoi(r.FormValue("l"))
+    common.CheckErr(err)
+
+    w.Header().Add("Content-Type", "application/xml; charset=utf-8")
+    tmp := MakeXML(data.films[first:last])
+    blob, err := xml.Marshal(tmp)
+    common.CheckErr(err)
+    _, err = w.Write(blob)
+    common.CheckErr(err)
+}
+
+//
+// Handles requests
+//
+func (data *WatchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+    switch path := r.URL.Path; path {
+    case "/watch":
+        data.HandleWatch(w, r)
+    case "/search":
+        data.HandleSearch(w, r)
+    case "/xml":
+        data.HandleXML(w, r)
     }
 }
 
@@ -350,6 +392,7 @@ func (data *WatchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 //---------------------------------------------------------------------------
 //
 func main() {
+	file_server := http.FileServer(http.Dir("."))
 	watch_handler := new(WatchHandler)
 
 	BuildDatabase(
@@ -360,9 +403,12 @@ func main() {
 	log.Printf("Loaded %d Collecions.\n", len(watch_handler.collections))
 	log.Printf("Loaded %d Films.\n", len(watch_handler.films))
 
+
 	http.HandleFunc("/", RootHandler)
-	http.Handle("/media/", http.FileServer(http.Dir(".")))
-	http.Handle("/files/", http.FileServer(http.Dir(".")))
+	http.Handle("/media/", file_server)
+	http.Handle("/files/", file_server)
+	http.Handle("/xml", watch_handler)
+	http.Handle("/search", watch_handler)
 	http.Handle("/watch", watch_handler)
 	http.ListenAndServe(":8080", nil)
 }

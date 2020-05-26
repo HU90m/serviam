@@ -4,6 +4,8 @@ const more_image = document.getElementById("more-image");
 
 var xhttp = new XMLHttpRequest();
 
+var film_num = 0;
+
 search_input.addEventListener('keyup', InputHandler);
 search_image.addEventListener('click', ImageHandler);
 more_image.addEventListener('click', MoreHandler);
@@ -43,7 +45,7 @@ function AddFilm (id, poster, title, releaseDate) {
     '<p>' + releaseDate + '</p>' +
     '</div></a>'
 
-    document.getElementById("hello").innerHTML += new_film;
+    document.getElementById("results").innerHTML += new_film;
 }
 
 function InputHandler (key_event) {
@@ -57,6 +59,8 @@ function ImageHandler () {
 }
 
 function MoreHandler () {
-    xhttp.open("GET", getBaseUrl() + "watch?x=hello", true);
+    var first = film_num;
+    film_num += 10;
+    xhttp.open("GET", getBaseUrl() + "xml?f=" + first + "&l=" + film_num, true);
     xhttp.send();
 }

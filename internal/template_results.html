@@ -11,7 +11,7 @@
             <img id="search-image" src="files/search_icon.png">
             <input id="search-input" type="text" name="" placeholder="What would you like to watch?">
         </header>
-        <main id="hello">
+        <main id="results">
             {{ range $idx, $film := $.Films}}
             {{ if index $.Watchable $idx }}
             <a class="watchable_film_item" HREF="watch?v={{ $film.Id }}">
@@ -26,6 +26,7 @@
             </a>
             {{ end }}
         </main>
+        <div id="elastic"></div>
         <footer>
             <img id="more-image" src="files/more_icon.png">
         </footer>
