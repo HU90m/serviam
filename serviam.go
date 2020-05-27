@@ -371,7 +371,7 @@ func (data *WatchHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
         log.Print("Serving someone some random results.\n")
         data.order = RandomOrder(len(data.films))
     }
-    film_results = GetFilms(&data.films, data.order, 0, 9)
+    film_results = GetFilms(&data.films, data.order, 0, 24)
     for _, film := range film_results {
         _, watchable := FindFileType(film.FilmFiles, "mp4")
         results_watchable = append(results_watchable, watchable)
