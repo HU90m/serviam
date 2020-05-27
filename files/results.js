@@ -25,6 +25,7 @@ function AddFilms (xml) {
     var i;
     for (i = 0; i < x.length; i++){
         AddFilm(
+            x[i].getAttribute("watchable"),
             x[i].getElementsByTagName("id")[0].childNodes[0].nodeValue,
             x[i].getElementsByTagName("poster")[0].childNodes[0].nodeValue,
             x[i].getElementsByTagName("title")[0].childNodes[0].nodeValue,
@@ -33,9 +34,15 @@ function AddFilms (xml) {
     }
 }
 
-function AddFilm (id, poster, title, releaseDate) {
+function AddFilm (watchable, id, poster, title, releaseDate) {
     var new_film;
-    new_film = '<a class="watchable_film_item" HREF="watch?v=' + id + '">';
+
+    if (watchable == "true") {
+        new_film = '<a class="watchable_film_item" HREF="watch?v="' + id + '">';
+    }
+    else {
+        new_film = '<a class="non-watchable_film_item" HREF="watch?v="' + id + '">';
+    }
 
     if (poster != "") {
         new_film += '<img src="media/' + poster + '">';
