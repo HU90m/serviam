@@ -4,7 +4,7 @@ const more_image = document.getElementById("more-image");
 
 var xhttp = new XMLHttpRequest();
 
-var film_num = 9;
+var film_num = 24;
 
 search_input.addEventListener('keyup', InputHandler);
 search_image.addEventListener('click', ImageHandler);
@@ -67,7 +67,7 @@ function ImageHandler () {
 
 function MoreHandler () {
     var first = film_num;
-    film_num += 9;
+    film_num += 24;
     xhttp.open("GET", getBaseUrl() + "xml?f=" + first + "&l=" + film_num, true);
     xhttp.send();
 }
