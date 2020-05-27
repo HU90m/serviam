@@ -146,9 +146,12 @@ func BuildDatabase(
 	films *[]structs.FilmData,
 	lonely_films *[]structs.FilmData,
 	collections *[]structs.CollectionData,
+	films_id2idx *map[string]int,
 ) {
 	var err error
 	var blob []byte
+
+    *films_id2idx = make(map[string]int)
 
 	films_dir := path.Join(MEDIA_ROOT, MEDIA_FILMS_DIR)
 	films_dir_files := GetInfoFiles(films_dir)
@@ -160,6 +163,7 @@ func BuildDatabase(
 		common.CheckErr(err)
 		err = json.Unmarshal(blob, &film_data)
 		common.CheckErr(err)
+        (*films_id2idx)[film_data.Id] = len(*films)
 		*films = append(*films, film_data)
 	}
 
@@ -176,7 +180,11 @@ func BuildDatabase(
 		err = json.Unmarshal(blob, &collection_data)
 		common.CheckErr(err)
 		*collections = append(*collections, collection_data)
-		*films = append(*films, collection_data.Films...)
+
+        for _, film_data := range collection_data.Films {
+            (*films_id2idx)[film_data.Id] = len(*films)
+            *films = append(*films, film_data)
+        }
 	}
 }
 
@@ -203,18 +211,19 @@ func FilmFromId(films *[]structs.FilmData, id string) int {
 func SearchFilms(
 	lonely_films *[]structs.FilmData,
 	collections *[]structs.CollectionData,
+	films_id2idx *map[string]int,
 	pattern string,
-) []structs.FilmData {
+) []int {
 	var film structs.FilmData
 	var collection structs.CollectionData
-	var output []structs.FilmData
+	var output []int
 
 	for _, film = range *lonely_films {
 		if strings.Contains(
 			strings.ToLower(film.Title),
 			strings.ToLower(pattern),
 		) {
-			output = append(output, film)
+			output = append(output, (*films_id2idx)[film.Id])
 		}
 	}
 	for _, collection = range *collections {
@@ -222,14 +231,16 @@ func SearchFilms(
 			strings.ToLower(collection.Name),
 			strings.ToLower(pattern),
 		) {
-			output = append(output, collection.Films...)
+            for _, film = range collection.Films {
+                output = append(output, (*films_id2idx)[film.Id])
+            }
 		} else {
 			for _, film = range collection.Films {
 				if strings.Contains(
 					strings.ToLower(film.Title),
 					strings.ToLower(pattern),
 				) {
-					output = append(output, film)
+                    output = append(output, (*films_id2idx)[film.Id])
 				}
 			}
 		}
@@ -238,26 +249,45 @@ func SearchFilms(
 }
 
 //
-// Returns a number of random films.
+// Returns a random order of films.
 //
-func RandomFilms(
+func RandomOrder(
+    len_slice int,
+) []int {
+    return rand.Perm(len_slice)
+}
+
+//
+// Returns films from specified range of an order slice
+//
+func GetFilms(
 	films *[]structs.FilmData,
-    //seed  int64,
-    num_films  int,
+    order []int,
+    first int,
+    last int,
 ) []structs.FilmData {
 	var output []structs.FilmData
-	var perm []int
+    var len_order, num_films int
 
-    //output = make([]structs.FilmData, len(*films))
+    len_order = len(order)
 
-    //rand.Seed(seed)
-    //perm = rand.Perm(len(*films))
+    if first >= last {
+        log.Printf("Invalid range: first = %d  and last = %d", first, last)
+    } else if first >= len_order {
+        log.Printf("Out of range: first = %d  and len_order = %d", first, len_order)
+    } else {
+        if last >= len_order {
+            log.Printf("Fitting range to end of order list")
+            last = len_order
+        }
+        num_films = last - first
+        output = make([]structs.FilmData, num_films)
 
-    output = make([]structs.FilmData, num_films)
-    perm = rand.Perm(num_films)
-
-    for i, v := range perm {
-        output[v] = (*films)[i]
+        v := 0
+        for i := first; i < last; i++ {
+            output[v] = (*films)[order[i]]
+            v++
+        }
     }
 	return output
 }
@@ -280,6 +310,8 @@ type WatchHandler struct {
 	films        []structs.FilmData
 	lonely_films []structs.FilmData
 	collections  []structs.CollectionData
+    films_id2idx map[string]int
+    order        []int
 }
 
 //
@@ -329,15 +361,17 @@ func (data *WatchHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
             "Serving someone the results for the query '%s'.\n",
             query,
         )
-        film_results = SearchFilms(
+        data.order = SearchFilms(
             &data.lonely_films,
             &data.collections,
+            &data.films_id2idx,
             query,
         )
     } else {
         log.Print("Serving someone some random results.\n")
-        film_results = RandomFilms(&data.films, 3)
+        data.order = RandomOrder(len(data.films))
     }
+    film_results = GetFilms(&data.films, data.order, 0, 9)
     for _, film := range film_results {
         _, watchable := FindFileType(film.FilmFiles, "mp4")
         results_watchable = append(results_watchable, watchable)
@@ -359,14 +393,17 @@ func (data *WatchHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 func (data *WatchHandler) HandleXML(w http.ResponseWriter, r *http.Request) {
     var err error
     var first, last int
+    var films []structs.FilmData
 
 	first, err = strconv.Atoi(r.FormValue("f"))
     common.CheckErr(err)
 	last, err = strconv.Atoi(r.FormValue("l"))
     common.CheckErr(err)
 
+    films = GetFilms(&data.films, data.order, first, last)
+
     w.Header().Add("Content-Type", "application/xml; charset=utf-8")
-    tmp := MakeXML(data.films[first:last])
+    tmp := MakeXML(films)
     blob, err := xml.Marshal(tmp)
     common.CheckErr(err)
     _, err = w.Write(blob)
@@ -399,6 +436,7 @@ func main() {
 		&watch_handler.films,
 		&watch_handler.lonely_films,
 		&watch_handler.collections,
+		&watch_handler.films_id2idx,
 	)
 	log.Printf("Loaded %d Collecions.\n", len(watch_handler.collections))
 	log.Printf("Loaded %d Films.\n", len(watch_handler.films))
