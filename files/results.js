@@ -38,10 +38,10 @@ function AddFilm (watchable, id, poster, title, releaseDate) {
     var new_film;
 
     if (watchable == "true") {
-        new_film = '<a class="watchable_film_item" HREF="watch?v="' + id + '">';
+        new_film = '<a class="watchable_film_item" HREF="watch?v=' + id + '">';
     }
     else {
-        new_film = '<a class="non-watchable_film_item" HREF="watch?v="' + id + '">';
+        new_film = '<a class="non-watchable_film_item" HREF="watch?v=' + id + '">';
     }
 
     if (poster != "") {
