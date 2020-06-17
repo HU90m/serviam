@@ -142,16 +142,11 @@ func MakeXML(films []structs.FilmData) XMLFilms {
 //
 // Build database
 //
-func BuildDatabase(
-	films *[]structs.FilmData,
-	lonely_films *[]structs.FilmData,
-	collections *[]structs.CollectionData,
-	films_id2idx *map[string]int,
-) {
+func BuildDatabase(site_server *SiteServer) {
 	var err error
 	var blob []byte
 
-    *films_id2idx = make(map[string]int)
+    site_server.films_id2idx = make(map[string]int)
 
 	films_dir := path.Join(MEDIA_ROOT, MEDIA_FILMS_DIR)
 	films_dir_files := GetInfoFiles(films_dir)
@@ -163,11 +158,11 @@ func BuildDatabase(
 		common.CheckErr(err)
 		err = json.Unmarshal(blob, &film_data)
 		common.CheckErr(err)
-        (*films_id2idx)[film_data.Id] = len(*films)
-		*films = append(*films, film_data)
+        site_server.films_id2idx[film_data.Id] = len(site_server.films)
+		site_server.films = append(site_server.films, film_data)
 	}
 
-	*lonely_films = *films
+	site_server.lonely_films = site_server.films
 
 	collections_dir := path.Join(MEDIA_ROOT, MEDIA_COLLECTIONS_DIR)
 	collections_dir_files := GetInfoFiles(collections_dir)
@@ -179,11 +174,11 @@ func BuildDatabase(
 		common.CheckErr(err)
 		err = json.Unmarshal(blob, &collection_data)
 		common.CheckErr(err)
-		*collections = append(*collections, collection_data)
+		site_server.collections = append(site_server.collections, collection_data)
 
         for _, film_data := range collection_data.Films {
-            (*films_id2idx)[film_data.Id] = len(*films)
-            *films = append(*films, film_data)
+            site_server.films_id2idx[film_data.Id] = len(site_server.films)
+            site_server.films = append(site_server.films, film_data)
         }
 	}
 }
@@ -296,7 +291,7 @@ func GetFilms(
 // Handles root requests.
 //
 func RootHandler(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, "search", http.StatusSeeOther)
+	http.Redirect(w, r, "results", http.StatusSeeOther)
 }
 
 //---------------------------------------------------------------------------
@@ -305,7 +300,7 @@ func RootHandler(w http.ResponseWriter, r *http.Request) {
 //
 // Holds data for /watch requests
 //
-type WatchHandler struct {
+type SiteServer struct {
 	media_root   string
 	films        []structs.FilmData
 	lonely_films []structs.FilmData
@@ -317,7 +312,7 @@ type WatchHandler struct {
 //
 // Handles /watch requests
 //
-func (data *WatchHandler) HandleWatch(w http.ResponseWriter, r *http.Request) {
+func (data *SiteServer) HandleWatch(w http.ResponseWriter, r *http.Request) {
 	var template_path string
 	var template_values interface{}
     var film_idx int
@@ -346,9 +341,9 @@ func (data *WatchHandler) HandleWatch(w http.ResponseWriter, r *http.Request) {
 }
 
 //
-// Handles /search requests
+// Handles /results requests
 //
-func (data *WatchHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
+func (data *SiteServer) HandleResults(w http.ResponseWriter, r *http.Request) {
 	var template_path string
 	var template_values interface{}
 
@@ -390,7 +385,7 @@ func (data *WatchHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 //
 // Handles /xml requests
 //
-func (data *WatchHandler) HandleXML(w http.ResponseWriter, r *http.Request) {
+func (data *SiteServer) HandleXML(w http.ResponseWriter, r *http.Request) {
     var err error
     var first, last int
     var films []structs.FilmData
@@ -411,14 +406,14 @@ func (data *WatchHandler) HandleXML(w http.ResponseWriter, r *http.Request) {
 }
 
 //
-// Handles requests
+// Handles site requests
 //
-func (data *WatchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (data *SiteServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
     switch path := r.URL.Path; path {
     case "/watch":
         data.HandleWatch(w, r)
-    case "/search":
-        data.HandleSearch(w, r)
+    case "/results":
+        data.HandleResults(w, r)
     case "/xml":
         data.HandleXML(w, r)
     }
@@ -430,23 +425,19 @@ func (data *WatchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 //
 func main() {
 	file_server := http.FileServer(http.Dir("."))
-	watch_handler := new(WatchHandler)
+	site_server := new(SiteServer)
 
-	BuildDatabase(
-		&watch_handler.films,
-		&watch_handler.lonely_films,
-		&watch_handler.collections,
-		&watch_handler.films_id2idx,
-	)
-	log.Printf("Loaded %d Collecions.\n", len(watch_handler.collections))
-	log.Printf("Loaded %d Films.\n", len(watch_handler.films))
+	BuildDatabase(site_server)
+
+	log.Printf("Loaded %d Collecions.\n", len(site_server.collections))
+	log.Printf("Loaded %d Films.\n", len(site_server.films))
 
 
 	http.HandleFunc("/", RootHandler)
 	http.Handle("/media/", file_server)
 	http.Handle("/files/", file_server)
-	http.Handle("/xml", watch_handler)
-	http.Handle("/search", watch_handler)
-	http.Handle("/watch", watch_handler)
+	http.Handle("/xml", site_server)
+	http.Handle("/results", site_server)
+	http.Handle("/watch", site_server)
 	http.ListenAndServe(":8080", nil)
 }
