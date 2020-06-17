@@ -28,6 +28,9 @@ const (
 	MEDIA_COLLECTIONS_DIR = "collections"
 	VIDEO_TEMPLATE_PATH   = "internal/template_video.html"
 	RESULTS_TEMPLATE_PATH = "internal/template_results.html"
+    COLLECTION_IDX       = 0
+    LONELY_FILM_IDX      = 1
+    COLLECTION_FILM_IDX  =2
 )
 
 //---------------------------------------------------------------------------
@@ -146,7 +149,7 @@ func BuildDatabase(site_server *SiteServer) {
 	var err error
 	var blob []byte
 
-    site_server.films_id2idx = make(map[string]int)
+    site_server.id2idx = make(map[string][2]int)
 
 	films_dir := path.Join(MEDIA_ROOT, MEDIA_FILMS_DIR)
 	films_dir_files := GetInfoFiles(films_dir)
@@ -158,11 +161,12 @@ func BuildDatabase(site_server *SiteServer) {
 		common.CheckErr(err)
 		err = json.Unmarshal(blob, &film_data)
 		common.CheckErr(err)
-        site_server.films_id2idx[film_data.Id] = len(site_server.films)
+        site_server.id2idx[film_data.Id] = [2]int{
+            LONELY_FILM_IDX,
+            len(site_server.films),
+        }
 		site_server.films = append(site_server.films, film_data)
 	}
-
-	site_server.lonely_films = site_server.films
 
 	collections_dir := path.Join(MEDIA_ROOT, MEDIA_COLLECTIONS_DIR)
 	collections_dir_files := GetInfoFiles(collections_dir)
@@ -174,10 +178,17 @@ func BuildDatabase(site_server *SiteServer) {
 		common.CheckErr(err)
 		err = json.Unmarshal(blob, &collection_data)
 		common.CheckErr(err)
+        site_server.id2idx[collection_data.Name] = [2]int{
+            COLLECTION_IDX,
+            len(site_server.collections),
+        }
 		site_server.collections = append(site_server.collections, collection_data)
 
         for _, film_data := range collection_data.Films {
-            site_server.films_id2idx[film_data.Id] = len(site_server.films)
+            site_server.id2idx[film_data.Id] = [2]int{
+                COLLECTION_FILM_IDX,
+                len(site_server.films),
+            }
             site_server.films = append(site_server.films, film_data)
         }
 	}
@@ -203,43 +214,42 @@ func FilmFromId(films *[]structs.FilmData, id string) int {
 //
 // Returns a films which have matched the search pattern.
 //
-func SearchFilms(
-	lonely_films *[]structs.FilmData,
-	collections *[]structs.CollectionData,
-	films_id2idx *map[string]int,
-	pattern string,
-) []int {
+func SearchFilms(site_server *SiteServer, pattern string) []int {
 	var film structs.FilmData
 	var collection structs.CollectionData
 	var output []int
 
-	for _, film = range *lonely_films {
-		if strings.Contains(
-			strings.ToLower(film.Title),
-			strings.ToLower(pattern),
-		) {
-			output = append(output, (*films_id2idx)[film.Id])
-		}
-	}
-	for _, collection = range *collections {
-		if strings.Contains(
-			strings.ToLower(collection.Name),
-			strings.ToLower(pattern),
-		) {
-            for _, film = range collection.Films {
-                output = append(output, (*films_id2idx)[film.Id])
+    for _, value := range site_server.id2idx {
+        switch value[0] {
+        case LONELY_FILM_IDX:
+            film = site_server.films[value[1]]
+            if strings.Contains(
+                strings.ToLower(film.Title),
+                strings.ToLower(pattern),
+            ) {
+                output = append(output, value[1])
             }
-		} else {
-			for _, film = range collection.Films {
-				if strings.Contains(
-					strings.ToLower(film.Title),
-					strings.ToLower(pattern),
-				) {
-                    output = append(output, (*films_id2idx)[film.Id])
-				}
-			}
-		}
-	}
+        case COLLECTION_IDX:
+            collection = site_server.collections[value[1]]
+            if strings.Contains(
+                strings.ToLower(collection.Name),
+                strings.ToLower(pattern),
+            ) {
+                for _, film = range collection.Films {
+                    output = append(output, site_server.id2idx[film.Id][1])
+                }
+            } else {
+                for _, film = range collection.Films {
+                    if strings.Contains(
+                        strings.ToLower(film.Title),
+                        strings.ToLower(pattern),
+                    ) {
+                        output = append(output, site_server.id2idx[film.Id][1])
+                    }
+                }
+            }
+        }
+    }
 	return output
 }
 
@@ -298,14 +308,13 @@ func RootHandler(w http.ResponseWriter, r *http.Request) {
 // Watch Handler
 //---------------------------------------------------------------------------
 //
-// Holds data for /watch requests
+// Holds data for the site server
 //
 type SiteServer struct {
 	media_root   string
 	films        []structs.FilmData
-	lonely_films []structs.FilmData
 	collections  []structs.CollectionData
-    films_id2idx map[string]int
+    id2idx       map[string][2]int
     order        []int
 }
 
@@ -357,9 +366,7 @@ func (data *SiteServer) HandleResults(w http.ResponseWriter, r *http.Request) {
             query,
         )
         data.order = SearchFilms(
-            &data.lonely_films,
-            &data.collections,
-            &data.films_id2idx,
+            data,
             query,
         )
     } else {
