@@ -50,7 +50,7 @@ type VideoTemplate struct {
 //
 type ResultCards struct {
 	XMLName xml.Name     `xml:"films"`
-	Films   []ResultCard `xml:"film"`
+	Cards   []ResultCard `xml:"film"`
 }
 
 //
@@ -171,29 +171,12 @@ func BuildDatabase(site_server *SiteServer) {
 }
 
 //
-// makes creates some result cards from a list of films
-//
-func MakeResultCards(films []structs.FilmData) ResultCards {
-    var result_cards ResultCards
-    result_cards.Films = make([]ResultCard, len(films))
-
-    for idx, film := range films {
-        result_cards.Films[idx].Id = film.Id
-        result_cards.Films[idx].Title = film.Title
-        result_cards.Films[idx].ReleaseDate = film.ReleaseDate
-        result_cards.Films[idx].PosterPath = film.PosterFile.Path
-        _, result_cards.Films[idx].Watchable = FindFileType(film.FilmFiles, "mp4")
-    }
-    return result_cards
-}
-
-//
 // Returns a films which have matched the search pattern.
 //
-func SearchItems(site_server *SiteServer, pattern string) []int {
+func SearchItems(site_server *SiteServer, pattern string) [][2]int {
 	var film structs.FilmData
 	var collection structs.CollectionData
-	var output []int
+	var output [][2]int
 
     for _, value := range site_server.id2idx {
         switch value[0] {
@@ -203,7 +186,7 @@ func SearchItems(site_server *SiteServer, pattern string) []int {
                 strings.ToLower(film.Title),
                 strings.ToLower(pattern),
             ) {
-                output = append(output, value[1])
+                output = append(output, value)
             }
         case COLLECTION_IDX:
             collection = site_server.collections[value[1]]
@@ -211,8 +194,9 @@ func SearchItems(site_server *SiteServer, pattern string) []int {
                 strings.ToLower(collection.Name),
                 strings.ToLower(pattern),
             ) {
+                output = append(output, site_server.id2idx[collection.Name])
                 for _, film = range collection.Films {
-                    output = append(output, site_server.id2idx[film.Id][1])
+                    output = append(output, site_server.id2idx[film.Id])
                 }
             } else {
                 for _, film = range collection.Films {
@@ -220,7 +204,7 @@ func SearchItems(site_server *SiteServer, pattern string) []int {
                         strings.ToLower(film.Title),
                         strings.ToLower(pattern),
                     ) {
-                        output = append(output, site_server.id2idx[film.Id][1])
+                        output = append(output, site_server.id2idx[film.Id])
                     }
                 }
             }
@@ -230,29 +214,33 @@ func SearchItems(site_server *SiteServer, pattern string) []int {
 }
 
 //
-// Returns a random order of films.
+// Shuffles a provided order.
 //
-func RandomOrder(
-    len_slice int,
-    seed int64,
-) []int {
+func ShuffleOrder(
+    order [][2]int,
+    seed  int64,
+) {
     rand.Seed(seed)
-    return rand.Perm(len_slice)
+    rand.Shuffle(
+        len(order),
+        func(i, j int) {
+            order[i], order[j] = order[j], order[i]
+        },
+    )
 }
 
 //
 // Returns films from specified range of an order slice
 //
-func GetFilms(
-	films *[]structs.FilmData,
-    order []int,
+func MakeResultCards(
+	site_server *SiteServer,
     first int,
     last int,
-) []structs.FilmData {
-	var output []structs.FilmData
-    var len_order, num_films int
+) ResultCards {
+    var result_cards ResultCards
+    var len_order, num_cards int
 
-    len_order = len(order)
+    len_order = len(site_server.order)
 
     if first >= last {
         log.Printf("Invalid range: first = %d  and last = %d", first, last)
@@ -263,16 +251,39 @@ func GetFilms(
             log.Printf("Fitting range to end of order list")
             last = len_order
         }
-        num_films = last - first
-        output = make([]structs.FilmData, num_films)
+        num_cards = last - first
+        result_cards.Cards = make([]ResultCard, num_cards)
 
-        v := 0
-        for i := first; i < last; i++ {
-            output[v] = (*films)[order[i]]
-            v++
+        card_idx := 0
+        for order_idx := first; order_idx < last; order_idx++ {
+            value := site_server.order[order_idx]
+            if value[0] == LONELY_FILM_IDX || value[0] == COLLECTION_FILM_IDX {
+                film := site_server.films[value[1]]
+                result_cards.Cards[card_idx].Id = film.Id
+                result_cards.Cards[card_idx].Title = film.Title
+                result_cards.Cards[card_idx].ReleaseDate = film.ReleaseDate
+                result_cards.Cards[card_idx].PosterPath = film.PosterFile.Path
+                _, result_cards.Cards[card_idx].Watchable = FindFileType(
+                    film.FilmFiles,
+                    "mp4",
+                )
+            }
+            if value[0] == COLLECTION_IDX {
+                collection := site_server.collections[value[1]]
+                result_cards.Cards[card_idx].Id = collection.Films[0].Id
+                result_cards.Cards[card_idx].Title = collection.Name
+                result_cards.Cards[card_idx].ReleaseDate = ""
+                result_cards.Cards[card_idx].PosterPath =
+                    collection.PosterFile.Path
+                _, result_cards.Cards[card_idx].Watchable = FindFileType(
+                    collection.Films[0].FilmFiles,
+                    "mp4",
+                )
+            }
+            card_idx++
         }
     }
-	return output
+	return result_cards
 }
 
 //
@@ -293,7 +304,7 @@ type SiteServer struct {
 	films        []structs.FilmData
 	collections  []structs.CollectionData
     id2idx       map[string][2]int
-    order        []int
+    order        [][2]int
 }
 
 //
@@ -351,7 +362,6 @@ func (data *SiteServer) HandleResults(w http.ResponseWriter, r *http.Request) {
     seed_exists := len(form["s"]) > 0
 
     if query_exists || seed_exists {
-        var film_results []structs.FilmData
         if query_exists {
             log.Printf(
                 "Serving someone the results for the query '%s'.\n",
@@ -366,12 +376,11 @@ func (data *SiteServer) HandleResults(w http.ResponseWriter, r *http.Request) {
             common.CheckErr(err)
 
             log.Print("Serving someone some random results.\n")
-            data.order = RandomOrder(len(data.films), seed)
+            ShuffleOrder(data.order, seed)
         }
-        film_results = GetFilms(&data.films, data.order, 0, 24)
 
         template_path = RESULTS_TEMPLATE_PATH
-        template_values = MakeResultCards(film_results)
+        template_values = MakeResultCards(data, 0, 24)
 
         t, err := template.ParseFiles(template_path)
         common.CheckErr(err)
@@ -390,18 +399,16 @@ func (data *SiteServer) HandleResults(w http.ResponseWriter, r *http.Request) {
 func (data *SiteServer) HandleXML(w http.ResponseWriter, r *http.Request) {
     var err error
     var first, last int
-    var films []structs.FilmData
 
 	first, err = strconv.Atoi(r.FormValue("f"))
     common.CheckErr(err)
 	last, err = strconv.Atoi(r.FormValue("l"))
     common.CheckErr(err)
 
-    films = GetFilms(&data.films, data.order, first, last)
+    result_cards := MakeResultCards(data, first, last)
 
     w.Header().Add("Content-Type", "application/xml; charset=utf-8")
-    tmp := MakeResultCards(films)
-    blob, err := xml.Marshal(tmp)
+    blob, err := xml.Marshal(result_cards)
     common.CheckErr(err)
     _, err = w.Write(blob)
     common.CheckErr(err)
