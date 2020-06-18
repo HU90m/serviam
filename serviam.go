@@ -188,23 +188,6 @@ func MakeResultCards(films []structs.FilmData) ResultCards {
 }
 
 //
-// Returns the film with the given id.
-// If no film has the given id,
-// returns the last film in the collection.
-//
-func FilmFromId(films *[]structs.FilmData, id string) int {
-	var idx int
-	var film structs.FilmData
-
-	for idx, film = range *films {
-		if film.Id == id {
-			break
-		}
-	}
-	return idx
-}
-
-//
 // Returns a films which have matched the search pattern.
 //
 func SearchItems(site_server *SiteServer, pattern string) []int {
@@ -324,7 +307,7 @@ func (data *SiteServer) HandleWatch(w http.ResponseWriter, r *http.Request) {
 	video_id := r.FormValue("v")
 
     if video_id != "" {
-        film_idx = FilmFromId(&data.films, video_id)
+        film_idx = data.id2idx[video_id][1]
     } else {
         film_idx = 0
     }
