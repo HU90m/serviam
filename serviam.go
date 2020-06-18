@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+    "net/url"
 	"os"
 	"path"
 	"serviam/common"
@@ -45,31 +46,23 @@ type VideoTemplate struct {
 }
 
 //
-// Holds values required by the results template.
+// Result cards structure
 //
-type ResultsTemplate struct {
-	Films     []structs.FilmData
-	Watchable []bool
+type ResultCards struct {
+	XMLName xml.Name     `xml:"films"`
+	Films   []ResultCard `xml:"film"`
 }
 
 //
-// XML films structure
+// Result card structure
 //
-type XMLFilms struct {
-	XMLName xml.Name `xml:"films"`
-	Films   []XMLFilm   `xml:"film"`
-}
-
-//
-// XML film structure
-//
-type XMLFilm struct {
+type ResultCard struct {
 	XMLName     xml.Name `xml:"film"`
 	Watchable   bool     `xml:"watchable,attr"`
 	Id          string   `xml:"id"`
 	Title       string   `xml:"title"`
 	ReleaseDate string   `xml:"release_date"`
-	Poster      string   `xml:"poster"`
+	PosterPath  string   `xml:"poster"`
 }
 
 //---------------------------------------------------------------------------
@@ -126,23 +119,6 @@ func GetInfoFiles(directory string) []string {
 }
 
 //
-// makes an xml structure from a list of films
-//
-func MakeXML(films []structs.FilmData) XMLFilms {
-    var xml_films XMLFilms
-    xml_films.Films = make([]XMLFilm, len(films))
-
-    for idx, film := range films {
-        xml_films.Films[idx].Id = film.Id
-        xml_films.Films[idx].Title = film.Title
-        xml_films.Films[idx].ReleaseDate = film.ReleaseDate
-        xml_films.Films[idx].Poster = film.PosterFile.Path
-        _, xml_films.Films[idx].Watchable = FindFileType(film.FilmFiles, "mp4")
-    }
-    return xml_films
-}
-
-//
 // Build database
 //
 func BuildDatabase(site_server *SiteServer) {
@@ -195,6 +171,23 @@ func BuildDatabase(site_server *SiteServer) {
 }
 
 //
+// makes creates some result cards from a list of films
+//
+func MakeResultCards(films []structs.FilmData) ResultCards {
+    var result_cards ResultCards
+    result_cards.Films = make([]ResultCard, len(films))
+
+    for idx, film := range films {
+        result_cards.Films[idx].Id = film.Id
+        result_cards.Films[idx].Title = film.Title
+        result_cards.Films[idx].ReleaseDate = film.ReleaseDate
+        result_cards.Films[idx].PosterPath = film.PosterFile.Path
+        _, result_cards.Films[idx].Watchable = FindFileType(film.FilmFiles, "mp4")
+    }
+    return result_cards
+}
+
+//
 // Returns the film with the given id.
 // If no film has the given id,
 // returns the last film in the collection.
@@ -214,7 +207,7 @@ func FilmFromId(films *[]structs.FilmData, id string) int {
 //
 // Returns a films which have matched the search pattern.
 //
-func SearchFilms(site_server *SiteServer, pattern string) []int {
+func SearchItems(site_server *SiteServer, pattern string) []int {
 	var film structs.FilmData
 	var collection structs.CollectionData
 	var output []int
@@ -258,7 +251,9 @@ func SearchFilms(site_server *SiteServer, pattern string) []int {
 //
 func RandomOrder(
     len_slice int,
+    seed int64,
 ) []int {
+    rand.Seed(seed)
     return rand.Perm(len_slice)
 }
 
@@ -353,40 +348,57 @@ func (data *SiteServer) HandleWatch(w http.ResponseWriter, r *http.Request) {
 // Handles /results requests
 //
 func (data *SiteServer) HandleResults(w http.ResponseWriter, r *http.Request) {
+    var err error
 	var template_path string
 	var template_values interface{}
+    var form url.Values
 
-	query := r.FormValue("q")
+    form, err = url.ParseQuery(r.URL.RawQuery)
+    common.CheckErr(err)
+    log.Printf("form: %v+", form)
 
-    var film_results []structs.FilmData
-    var results_watchable []bool
-    if query != "" {
-        log.Printf(
-            "Serving someone the results for the query '%s'.\n",
-            query,
-        )
-        data.order = SearchFilms(
-            data,
-            query,
-        )
+    var query_exists bool
+    if len(form["q"]) > 0 {
+        if form["q"][0] != "" {
+            query_exists = true
+        } else {
+            query_exists = false
+        }
+    }
+    seed_exists := len(form["s"]) > 0
+
+    if query_exists || seed_exists {
+        var film_results []structs.FilmData
+        if query_exists {
+            log.Printf(
+                "Serving someone the results for the query '%s'.\n",
+                form["q"][0],
+            )
+            data.order = SearchItems(
+                data,
+                form["q"][0],
+            )
+        } else if seed_exists {
+            seed, err := strconv.ParseInt(form["s"][0], 16, 64)
+            common.CheckErr(err)
+
+            log.Print("Serving someone some random results.\n")
+            data.order = RandomOrder(len(data.films), seed)
+        }
+        film_results = GetFilms(&data.films, data.order, 0, 24)
+
+        template_path = RESULTS_TEMPLATE_PATH
+        template_values = MakeResultCards(film_results)
+
+        t, err := template.ParseFiles(template_path)
+        common.CheckErr(err)
+        err = t.Execute(w, template_values)
+        common.CheckErr(err)
     } else {
-        log.Print("Serving someone some random results.\n")
-        data.order = RandomOrder(len(data.films))
+        seed := rand.Int63()
+        form.Add("s", strconv.FormatInt(seed, 16))
+        http.Redirect(w, r, "results?" + form.Encode(), http.StatusSeeOther)
     }
-    film_results = GetFilms(&data.films, data.order, 0, 24)
-    for _, film := range film_results {
-        _, watchable := FindFileType(film.FilmFiles, "mp4")
-        results_watchable = append(results_watchable, watchable)
-    }
-    template_path = RESULTS_TEMPLATE_PATH
-    template_values = ResultsTemplate{
-        Films:     film_results,
-        Watchable: results_watchable,
-    }
-    t, err := template.ParseFiles(template_path)
-    common.CheckErr(err)
-    err = t.Execute(w, template_values)
-    common.CheckErr(err)
 }
 
 //
@@ -405,7 +417,7 @@ func (data *SiteServer) HandleXML(w http.ResponseWriter, r *http.Request) {
     films = GetFilms(&data.films, data.order, first, last)
 
     w.Header().Add("Content-Type", "application/xml; charset=utf-8")
-    tmp := MakeXML(films)
+    tmp := MakeResultCards(films)
     blob, err := xml.Marshal(tmp)
     common.CheckErr(err)
     _, err = w.Write(blob)

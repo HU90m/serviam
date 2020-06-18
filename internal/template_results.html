@@ -13,12 +13,12 @@
         </header>
         <main id="results">
             {{ range $idx, $film := $.Films}}
-            {{ if index $.Watchable $idx }}
+            {{ if $film.Watchable }}
             <a class="watchable_film_item" HREF="watch?v={{ $film.Id }}">
             {{ else }}
             <a class="non-watchable_film_item" HREF="watch?v={{ $film.Id }}">
             {{ end }}
-                <img src="media/{{ $film.PosterFile.Path }}">
+                <img src="media/{{ $film.PosterPath }}">
                 <div>
                     <p><b>{{$film.Title}}</b></p>
                     <p>{{$film.ReleaseDate}}</p>
