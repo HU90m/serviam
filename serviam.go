@@ -127,6 +127,8 @@ func BuildDatabase(site_server *SiteServer) {
 
     site_server.id2idx = make(map[string][2]int)
 
+    site_server.permutations = make(map[string][][2]int)
+
 	films_dir := path.Join(MEDIA_ROOT, MEDIA_FILMS_DIR)
 	films_dir_files := GetInfoFiles(films_dir)
 
@@ -137,10 +139,16 @@ func BuildDatabase(site_server *SiteServer) {
 		common.CheckErr(err)
 		err = json.Unmarshal(blob, &film_data)
 		common.CheckErr(err)
-        site_server.id2idx[film_data.Id] = [2]int{
+
+        film_idx := [2]int{
             LONELY_FILM_IDX,
             len(site_server.films),
         }
+        site_server.id2idx[film_data.Id] =  film_idx
+        site_server.permutations["original"] = append(
+            site_server.permutations["original"],
+            film_idx,
+        )
 		site_server.films = append(site_server.films, film_data)
 	}
 
@@ -154,17 +162,28 @@ func BuildDatabase(site_server *SiteServer) {
 		common.CheckErr(err)
 		err = json.Unmarshal(blob, &collection_data)
 		common.CheckErr(err)
-        site_server.id2idx[collection_data.Name] = [2]int{
+
+        collection_idx := [2]int{
             COLLECTION_IDX,
             len(site_server.collections),
         }
+        site_server.id2idx[collection_data.Name] = collection_idx
+        site_server.permutations["original"] = append(
+            site_server.permutations["original"],
+            collection_idx,
+        )
 		site_server.collections = append(site_server.collections, collection_data)
 
         for _, film_data := range collection_data.Films {
-            site_server.id2idx[film_data.Id] = [2]int{
+            film_idx := [2]int{
                 COLLECTION_FILM_IDX,
                 len(site_server.films),
             }
+            site_server.id2idx[film_data.Id] = film_idx
+            site_server.permutations["original"] = append(
+                site_server.permutations["original"],
+                film_idx,
+            )
             site_server.films = append(site_server.films, film_data)
         }
 	}
@@ -214,49 +233,56 @@ func SearchItems(site_server *SiteServer, pattern string) [][2]int {
 }
 
 //
-// Shuffles a provided order.
+// Shuffles a provided permutation.
 //
-func ShuffleOrder(
-    order [][2]int,
+func ShufflePermutation(
+    permutation [][2]int,
     seed  int64,
 ) {
     rand.Seed(seed)
     rand.Shuffle(
-        len(order),
+        len(permutation),
         func(i, j int) {
-            order[i], order[j] = order[j], order[i]
+            permutation[i], permutation[j] = permutation[j], permutation[i]
         },
     )
 }
 
 //
-// Returns films from specified range of an order slice
+// Returns films from specified range of an item permutation
 //
 func MakeResultCards(
 	site_server *SiteServer,
+	perm_key string,
     first int,
     last int,
 ) ResultCards {
     var result_cards ResultCards
-    var len_order, num_cards int
+    var len_permutation, num_cards int
 
-    len_order = len(site_server.order)
+    len_permutation = len(site_server.permutations[perm_key])
 
     if first >= last {
         log.Printf("Invalid range: first = %d  and last = %d", first, last)
-    } else if first >= len_order {
-        log.Printf("Out of range: first = %d  and len_order = %d", first, len_order)
+    } else if first >= len_permutation {
+        log.Printf(
+            "Out of range: first = %d  and len_permutation = %d",
+            first,
+            len_permutation,
+        )
     } else {
-        if last >= len_order {
-            log.Printf("Fitting range to end of order list")
-            last = len_order
+        if last >= len_permutation {
+            log.Printf("Fitting range to end of permutation")
+            last = len_permutation
         }
         num_cards = last - first
         result_cards.Cards = make([]ResultCard, num_cards)
 
         card_idx := 0
-        for order_idx := first; order_idx < last; order_idx++ {
-            value := site_server.order[order_idx]
+        for permutation_idx := first;
+            permutation_idx < last;
+            permutation_idx++ {
+            value := site_server.permutations[perm_key][permutation_idx]
 
             if value[0] == LONELY_FILM_IDX || value[0] == COLLECTION_FILM_IDX {
                 film := site_server.films[value[1]]
@@ -320,7 +346,7 @@ type SiteServer struct {
 	films        []structs.FilmData
 	collections  []structs.CollectionData
     id2idx       map[string][2]int
-    order        [][2]int
+    permutations map[string][][2]int
 }
 
 //
@@ -359,15 +385,14 @@ func (data *SiteServer) HandleWatch(w http.ResponseWriter, r *http.Request) {
 //
 func (data *SiteServer) HandleResults(w http.ResponseWriter, r *http.Request) {
     var err error
+    var query_exists, seed_exists bool
 	var template_path string
 	var template_values interface{}
     var form url.Values
 
     form, err = url.ParseQuery(r.URL.RawQuery)
     common.CheckErr(err)
-    log.Printf("form: %v+", form)
 
-    var query_exists bool
     if len(form["q"]) > 0 {
         if form["q"][0] != "" {
             query_exists = true
@@ -375,28 +400,30 @@ func (data *SiteServer) HandleResults(w http.ResponseWriter, r *http.Request) {
             query_exists = false
         }
     }
-    seed_exists := len(form["s"]) > 0
+    seed_exists = len(form["s"]) > 0
 
     if query_exists || seed_exists {
+        var perm_key string
         if query_exists {
-            log.Printf(
-                "Serving someone the results for the query '%s'.\n",
-                form["q"][0],
-            )
-            data.order = SearchItems(
+            perm_key = "q_" + form["q"][0]
+            log.Printf("Serving query %s\n", perm_key)
+            data.permutations[perm_key] = SearchItems(
                 data,
                 form["q"][0],
             )
         } else if seed_exists {
+            perm_key = "s_" + form["s"][0]
+            log.Printf("Serving site with seed %s\n", perm_key)
+
             seed, err := strconv.ParseInt(form["s"][0], 16, 64)
             common.CheckErr(err)
 
-            log.Print("Serving someone some random results.\n")
-            ShuffleOrder(data.order, seed)
+            data.permutations[perm_key] = data.permutations["original"]
+            ShufflePermutation(data.permutations[perm_key], seed)
         }
 
         template_path = RESULTS_TEMPLATE_PATH
-        template_values = MakeResultCards(data, 0, 24)
+        template_values = MakeResultCards(data, perm_key, 0, 24)
 
         t, err := template.ParseFiles(template_path)
         common.CheckErr(err)
@@ -405,6 +432,7 @@ func (data *SiteServer) HandleResults(w http.ResponseWriter, r *http.Request) {
     } else {
         seed := rand.Int63()
         form.Add("s", strconv.FormatInt(seed, 16))
+        log.Printf("Generated seed %s\n", strconv.FormatInt(seed, 16))
         http.Redirect(w, r, "results?" + form.Encode(), http.StatusSeeOther)
     }
 }
@@ -415,13 +443,27 @@ func (data *SiteServer) HandleResults(w http.ResponseWriter, r *http.Request) {
 func (data *SiteServer) HandleXML(w http.ResponseWriter, r *http.Request) {
     var err error
     var first, last int
+    var permutation_key string
+
+	query := r.FormValue("q")
+	seed := r.FormValue("s")
 
 	first, err = strconv.Atoi(r.FormValue("f"))
     common.CheckErr(err)
 	last, err = strconv.Atoi(r.FormValue("l"))
     common.CheckErr(err)
 
-    result_cards := MakeResultCards(data, first, last)
+    if query != "" {
+        permutation_key = "q_" + query
+        log.Printf("Serving xml with query %s\n", permutation_key)
+    } else if seed != "" {
+        permutation_key = "s_" + seed
+        log.Printf("Serving xml with seed %s\n", permutation_key)
+    } else {
+        permutation_key = "original"
+    }
+
+    result_cards := MakeResultCards(data, permutation_key, first, last)
 
     w.Header().Add("Content-Type", "application/xml; charset=utf-8")
     blob, err := xml.Marshal(result_cards)

@@ -22,15 +22,21 @@ xhttp.onreadystatechange = function() {
 
 function AddFilms (xml) {
     var x = xml.responseXML.getElementsByTagName("film");
+    var release_date;
     var i;
     for (i = 0; i < x.length; i++){
+        if (x[i].getElementsByTagName("release_date")[0].childNodes.length != 0) {
+            release_date = x[i].getElementsByTagName("release_date")[0].childNodes[0].nodeValue;
+        } else {
+            release_date = "";
+        }
         AddFilm(
             x[i].getAttribute("watchable"),
             x[i].getElementsByTagName("id")[0].childNodes[0].nodeValue,
             x[i].getElementsByTagName("poster")[0].childNodes[0].nodeValue,
             x[i].getElementsByTagName("title")[0].childNodes[0].nodeValue,
-            x[i].getElementsByTagName("release_date")[0].childNodes[0].nodeValue,
-        )
+            release_date,
+        );
     }
 }
 
@@ -50,24 +56,24 @@ function AddFilm (watchable, id, poster, title, releaseDate) {
     new_film += '<div>' +
     '<p><b>' + title + '</b></p>' +
     '<p>' + releaseDate + '</p>' +
-    '</div></a>'
+    '</div></a>';
 
     document.getElementById("results").innerHTML += new_film;
 }
 
 function InputHandler (key_event) {
     if (event.keyCode === 13) {
-        window.location.replace("?q="+search_input.value);
+        window.location.replace("?q=" + encodeURI(search_input.value));
     }
 }
 
 function ImageHandler () {
-    window.location.replace("?q="+search_input.value);
+    window.location.replace("?q=" + encodeURI(search_input.value));
 }
 
 function MoreHandler () {
     var first = film_num;
     film_num += 24;
-    xhttp.open("GET", getBaseUrl() + "xml?f=" + first + "&l=" + film_num, true);
+    xhttp.open("GET", getBaseUrl() + "xml" + window.location.search + "&f=" + first + "&l=" + film_num, true);
     xhttp.send();
 }
