@@ -38,14 +38,6 @@ const (
 // Structures
 //---------------------------------------------------------------------------
 //
-// Holds values required by the video template.
-//
-type VideoTemplate struct {
-	Film structs.FilmData
-	File structs.FileData
-}
-
-//
 // Result cards structure
 //
 type ResultCards struct {
@@ -63,6 +55,24 @@ type ResultCard struct {
 	Title       string   `xml:"title"`
 	Text        string   `xml:"text"`
 	Picture     string   `xml:"picture"`
+}
+
+//
+// Watch cards structure
+//
+type WatchCards struct {
+	Name  string
+	Cards []WatchCard
+}
+
+//
+// Watch card structure
+//
+type WatchCard struct {
+	Title     string
+	Text      string
+	Video     string
+	VideoType string
 }
 
 //---------------------------------------------------------------------------
@@ -249,7 +259,7 @@ func ShufflePermutation(
 }
 
 //
-// Returns films from specified range of an item permutation
+// Returns result cards for items in a permutation range
 //
 func MakeResultCards(
 	site_server *SiteServer,
@@ -306,7 +316,7 @@ func MakeResultCards(
             if value[0] == COLLECTION_IDX {
                 collection := site_server.collections[value[1]]
 
-                result_cards.Cards[card_idx].Id = collection.Films[0].Id
+                result_cards.Cards[card_idx].Id = collection.Name
                 result_cards.Cards[card_idx].Title = collection.Name
                 result_cards.Cards[card_idx].Text = ""
 
@@ -317,10 +327,7 @@ func MakeResultCards(
                     result_cards.Cards[card_idx].Picture =
                         "files/empty_poster.jpg"
                 }
-                _, result_cards.Cards[card_idx].Watchable = FindFileType(
-                    collection.Films[0].FilmFiles,
-                    "mp4",
-                )
+                result_cards.Cards[card_idx].Watchable = true
             }
             card_idx++
         }
@@ -329,10 +336,57 @@ func MakeResultCards(
 }
 
 //
+// Returns watch cards for items with the provided index
+//
+func MakeWatchCards(
+	site_server *SiteServer,
+	item_id     string,
+) WatchCards {
+    var watch_cards WatchCards
+
+    item_idx := site_server.id2idx[item_id]
+
+    if item_idx[0] == LONELY_FILM_IDX || item_idx[0] == COLLECTION_FILM_IDX {
+        film := site_server.films[item_idx[1]]
+        film_file, _ := FindFileType(film.FilmFiles, "mp4")
+
+        watch_cards.Name = film.Title
+
+        watch_cards.Cards = make([]WatchCard, 1)
+        watch_cards.Cards[0] = WatchCard{
+            film.Title,
+            film.ReleaseDate,
+            film_file.Path,
+            film_file.Type,
+        }
+    }
+
+    if item_idx[0] == COLLECTION_IDX {
+        collection := site_server.collections[item_idx[1]]
+
+        watch_cards.Name = collection.Name
+
+        watch_cards.Cards = make([]WatchCard, len(collection.Films))
+
+        for idx, film := range collection.Films {
+            film_file, _ := FindFileType(film.FilmFiles, "mp4")
+
+            watch_cards.Cards[idx] = WatchCard{
+                film.Title,
+                film.ReleaseDate,
+                film_file.Path,
+                film_file.Type,
+            }
+        }
+    }
+    return watch_cards
+}
+
+//
 // Handles root requests.
 //
 func RootHandler(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, "results", http.StatusSeeOther)
+    http.Redirect(w, r, "results", http.StatusSeeOther)
 }
 
 //---------------------------------------------------------------------------
@@ -342,9 +396,9 @@ func RootHandler(w http.ResponseWriter, r *http.Request) {
 // Holds data for the site server
 //
 type SiteServer struct {
-	media_root   string
-	films        []structs.FilmData
-	collections  []structs.CollectionData
+    media_root   string
+    films        []structs.FilmData
+    collections  []structs.CollectionData
     id2idx       map[string][2]int
     permutations map[string][][2]int
 }
@@ -353,30 +407,14 @@ type SiteServer struct {
 // Handles /watch requests
 //
 func (data *SiteServer) HandleWatch(w http.ResponseWriter, r *http.Request) {
-	var template_path string
-	var template_values interface{}
-    var film_idx int
+	watch_id := r.FormValue("v")
+    log.Printf("Serving watch site for %s.\n", watch_id)
 
-	video_id := r.FormValue("v")
+    watch_cards := MakeWatchCards(data, watch_id)
 
-    if video_id != "" {
-        film_idx = data.id2idx[video_id][1]
-    } else {
-        film_idx = 0
-    }
-
-    log.Printf("Serving '%s' to someone.\n", data.films[film_idx].Title)
-
-    film_file, _ := FindFileType(data.films[film_idx].FilmFiles, "mp4")
-    template_path = WATCH_HTML_TEMPLATE
-    template_values = VideoTemplate{
-        Film: data.films[film_idx],
-        File: film_file,
-    }
-
-    t, err := template.ParseFiles(template_path)
+    t, err := template.ParseFiles(WATCH_HTML_TEMPLATE)
     common.CheckErr(err)
-    err = t.Execute(w, template_values)
+    err = t.Execute(w, watch_cards)
     common.CheckErr(err)
 }
 
@@ -386,8 +424,6 @@ func (data *SiteServer) HandleWatch(w http.ResponseWriter, r *http.Request) {
 func (data *SiteServer) HandleResults(w http.ResponseWriter, r *http.Request) {
     var err error
     var query_exists, seed_exists bool
-	var template_path string
-	var template_values interface{}
     var form url.Values
 
     form, err = url.ParseQuery(r.URL.RawQuery)
@@ -422,12 +458,11 @@ func (data *SiteServer) HandleResults(w http.ResponseWriter, r *http.Request) {
             ShufflePermutation(data.permutations[perm_key], seed)
         }
 
-        template_path = RESULTS_HTML_TEMPLATE
-        template_values = MakeResultCards(data, perm_key, 0, 24)
+        result_cards := MakeResultCards(data, perm_key, 0, 24)
 
-        t, err := template.ParseFiles(template_path)
+        t, err := template.ParseFiles(RESULTS_HTML_TEMPLATE)
         common.CheckErr(err)
-        err = t.Execute(w, template_values)
+        err = t.Execute(w, result_cards)
         common.CheckErr(err)
     } else {
         seed := rand.Int63()

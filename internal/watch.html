@@ -2,7 +2,7 @@
 <html lang="en">
     <head>
         <meta charset="utf-8">
-        <title>{{ .Film.Title }}</title>
+        <title>{{ .Name }}</title>
         <link rel="stylesheet" type="text/css" href="files/watch.css" />
         <link rel="shortcut icon" type="image/png" href="files/icon.png" />
     </head>
@@ -12,15 +12,17 @@
             <input id="search-input" type="text" name="" placeholder="What would you like to watch?">
          </header>
          <main>
+            {{ range $idx, $card := $.Cards}}
             <article>
                 <video controls preload="auto">
-                    <source src="media/{{ .File.Path }}"
-                            type="video/{{ .File.Type }}">
+                    <source src="media/{{ $card.Video }}"
+                            type="video/{{ $card.VideoType }}">
                     Sorry, your browser doesn't support embedded videos.
                 </video>
-                <p>{{ .Film.Title }}</p>
-                <p>{{ .Film.ReleaseDate }}</p>
+                <p>{{ $card.Title }}</p>
+                <p>{{ $card.Text }}</p>
             </article>
+            {{ end }}
         </main>
     </body>
     <script type="text/javascript" src="files/watch.js"></script>
