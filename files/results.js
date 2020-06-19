@@ -45,7 +45,7 @@ function AddFilm (watchable, id, poster, title, releaseDate) {
     }
 
     if (poster != "") {
-        new_film += '<img src="media/' + poster + '">';
+        new_film += '<img src="' + poster + '">';
     }
     new_film += '<div>' +
     '<p><b>' + title + '</b></p>' +

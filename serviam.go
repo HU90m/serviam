@@ -257,12 +257,21 @@ func MakeResultCards(
         card_idx := 0
         for order_idx := first; order_idx < last; order_idx++ {
             value := site_server.order[order_idx]
+
             if value[0] == LONELY_FILM_IDX || value[0] == COLLECTION_FILM_IDX {
                 film := site_server.films[value[1]]
+
                 result_cards.Cards[card_idx].Id = film.Id
                 result_cards.Cards[card_idx].Title = film.Title
                 result_cards.Cards[card_idx].ReleaseDate = film.ReleaseDate
-                result_cards.Cards[card_idx].PosterPath = film.PosterFile.Path
+
+                if film.PosterFile.Path != "" {
+                    result_cards.Cards[card_idx].PosterPath =
+                        MEDIA_ROOT + "/" + film.PosterFile.Path
+                } else {
+                    result_cards.Cards[card_idx].PosterPath =
+                        "files/empty_poster.jpg"
+                }
                 _, result_cards.Cards[card_idx].Watchable = FindFileType(
                     film.FilmFiles,
                     "mp4",
@@ -270,11 +279,18 @@ func MakeResultCards(
             }
             if value[0] == COLLECTION_IDX {
                 collection := site_server.collections[value[1]]
+
                 result_cards.Cards[card_idx].Id = collection.Films[0].Id
                 result_cards.Cards[card_idx].Title = collection.Name
                 result_cards.Cards[card_idx].ReleaseDate = ""
-                result_cards.Cards[card_idx].PosterPath =
-                    collection.PosterFile.Path
+
+                if collection.PosterFile.Path != "" {
+                    result_cards.Cards[card_idx].PosterPath =
+                        MEDIA_ROOT + "/" + collection.PosterFile.Path
+                } else {
+                    result_cards.Cards[card_idx].PosterPath =
+                        "files/empty_poster.jpg"
+                }
                 _, result_cards.Cards[card_idx].Watchable = FindFileType(
                     collection.Films[0].FilmFiles,
                     "mp4",

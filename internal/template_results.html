@@ -18,7 +18,7 @@
             {{ else }}
             <a class="non-watchable_film_item" HREF="watch?v={{ $card.Id }}">
             {{ end }}
-                <img src="media/{{ $card.PosterPath }}">
+                <img src="{{ $card.PosterPath }}">
                 <div>
                     <p><b>{{$card.Title}}</b></p>
                     <p>{{$card.ReleaseDate}}</p>
