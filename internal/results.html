@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8">
         <title>Films</title>
-        <link rel="stylesheet" type="text/css" href="files/template_results.css" />
+        <link rel="stylesheet" type="text/css" href="files/results.css" />
         <link rel="shortcut icon" type="image/png" href="files/icon.png" />
     </head>
     <body>
@@ -18,10 +18,10 @@
             {{ else }}
             <a class="non-watchable_film_item" HREF="watch?v={{ $card.Id }}">
             {{ end }}
-                <img src="{{ $card.PosterPath }}">
+                <img src="{{ $card.Picture }}">
                 <div>
                     <p><b>{{$card.Title}}</b></p>
-                    <p>{{$card.ReleaseDate}}</p>
+                    <p>{{$card.Text}}</p>
                 </div>
             </a>
             {{ end }}

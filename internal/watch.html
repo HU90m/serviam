@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8">
         <title>{{ .Film.Title }}</title>
-        <link rel="stylesheet" type="text/css" href="files/template_video.css" />
+        <link rel="stylesheet" type="text/css" href="files/watch.css" />
         <link rel="shortcut icon" type="image/png" href="files/icon.png" />
     </head>
     <body>
@@ -23,21 +23,5 @@
             </article>
         </main>
     </body>
-    <script type="text/javascript">
-        const search_input = document.getElementById("search-input");
-        const search_image = document.getElementById("search-image");
-
-        search_input.addEventListener('keyup', InputHandler);
-        search_image.addEventListener('click', ImageHandler);
-
-        function InputHandler (key_event) {
-            if (event.keyCode === 13) {
-                location.replace("search?q="+search_input.value);
-            }
-        }
-
-        function ImageHandler () {
-            location.replace("search?q="+search_input.value);
-        }
-    </script>
+    <script type="text/javascript" src="files/watch.js"></script>
 </html>

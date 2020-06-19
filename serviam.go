@@ -27,11 +27,11 @@ const (
 	MEDIA_ROOT            = "media"
 	MEDIA_FILMS_DIR       = "films"
 	MEDIA_COLLECTIONS_DIR = "collections"
-	VIDEO_TEMPLATE_PATH   = "internal/template_video.html"
-	RESULTS_TEMPLATE_PATH = "internal/template_results.html"
+	WATCH_HTML_TEMPLATE   = "internal/watch.html"
+	RESULTS_HTML_TEMPLATE = "internal/results.html"
     COLLECTION_IDX       = 0
     LONELY_FILM_IDX      = 1
-    COLLECTION_FILM_IDX  =2
+    COLLECTION_FILM_IDX  = 2
 )
 
 //---------------------------------------------------------------------------
@@ -49,20 +49,20 @@ type VideoTemplate struct {
 // Result cards structure
 //
 type ResultCards struct {
-	XMLName xml.Name     `xml:"films"`
-	Cards   []ResultCard `xml:"film"`
+	XMLName xml.Name     `xml:"cards"`
+	Cards   []ResultCard `xml:"card"`
 }
 
 //
 // Result card structure
 //
 type ResultCard struct {
-	XMLName     xml.Name `xml:"film"`
+	XMLName     xml.Name `xml:"card"`
 	Watchable   bool     `xml:"watchable,attr"`
 	Id          string   `xml:"id"`
 	Title       string   `xml:"title"`
-	ReleaseDate string   `xml:"release_date"`
-	PosterPath  string   `xml:"poster"`
+	Text        string   `xml:"text"`
+	Picture     string   `xml:"picture"`
 }
 
 //---------------------------------------------------------------------------
@@ -289,13 +289,13 @@ func MakeResultCards(
 
                 result_cards.Cards[card_idx].Id = film.Id
                 result_cards.Cards[card_idx].Title = film.Title
-                result_cards.Cards[card_idx].ReleaseDate = film.ReleaseDate
+                result_cards.Cards[card_idx].Text = film.ReleaseDate
 
                 if film.PosterFile.Path != "" {
-                    result_cards.Cards[card_idx].PosterPath =
+                    result_cards.Cards[card_idx].Picture =
                         MEDIA_ROOT + "/" + film.PosterFile.Path
                 } else {
-                    result_cards.Cards[card_idx].PosterPath =
+                    result_cards.Cards[card_idx].Picture =
                         "files/empty_poster.jpg"
                 }
                 _, result_cards.Cards[card_idx].Watchable = FindFileType(
@@ -308,13 +308,13 @@ func MakeResultCards(
 
                 result_cards.Cards[card_idx].Id = collection.Films[0].Id
                 result_cards.Cards[card_idx].Title = collection.Name
-                result_cards.Cards[card_idx].ReleaseDate = ""
+                result_cards.Cards[card_idx].Text = ""
 
                 if collection.PosterFile.Path != "" {
-                    result_cards.Cards[card_idx].PosterPath =
+                    result_cards.Cards[card_idx].Picture =
                         MEDIA_ROOT + "/" + collection.PosterFile.Path
                 } else {
-                    result_cards.Cards[card_idx].PosterPath =
+                    result_cards.Cards[card_idx].Picture =
                         "files/empty_poster.jpg"
                 }
                 _, result_cards.Cards[card_idx].Watchable = FindFileType(
@@ -368,7 +368,7 @@ func (data *SiteServer) HandleWatch(w http.ResponseWriter, r *http.Request) {
     log.Printf("Serving '%s' to someone.\n", data.films[film_idx].Title)
 
     film_file, _ := FindFileType(data.films[film_idx].FilmFiles, "mp4")
-    template_path = VIDEO_TEMPLATE_PATH
+    template_path = WATCH_HTML_TEMPLATE
     template_values = VideoTemplate{
         Film: data.films[film_idx],
         File: film_file,
@@ -422,7 +422,7 @@ func (data *SiteServer) HandleResults(w http.ResponseWriter, r *http.Request) {
             ShufflePermutation(data.permutations[perm_key], seed)
         }
 
-        template_path = RESULTS_TEMPLATE_PATH
+        template_path = RESULTS_HTML_TEMPLATE
         template_values = MakeResultCards(data, perm_key, 0, 24)
 
         t, err := template.ParseFiles(template_path)

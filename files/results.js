@@ -3,8 +3,7 @@ const search_image = document.getElementById("search-image");
 const more_image = document.getElementById("more-image");
 
 var xhttp = new XMLHttpRequest();
-
-var film_num = 24;
+var card_num = 24;
 
 search_input.addEventListener('keyup', InputHandler);
 search_image.addEventListener('click', ImageHandler);
@@ -21,19 +20,19 @@ xhttp.onreadystatechange = function() {
 };
 
 function AddFilms (xml) {
-    var x = xml.responseXML.getElementsByTagName("film");
+    var x = xml.responseXML.getElementsByTagName("card");
     var release_date;
     var i;
     for (i = 0; i < x.length; i++){
-        if (x[i].getElementsByTagName("release_date")[0].childNodes.length != 0) {
-            release_date = x[i].getElementsByTagName("release_date")[0].childNodes[0].nodeValue;
+        if (x[i].getElementsByTagName("text")[0].childNodes.length != 0) {
+            release_date = x[i].getElementsByTagName("text")[0].childNodes[0].nodeValue;
         } else {
             release_date = "";
         }
         AddFilm(
             x[i].getAttribute("watchable"),
             x[i].getElementsByTagName("id")[0].childNodes[0].nodeValue,
-            x[i].getElementsByTagName("poster")[0].childNodes[0].nodeValue,
+            x[i].getElementsByTagName("picture")[0].childNodes[0].nodeValue,
             x[i].getElementsByTagName("title")[0].childNodes[0].nodeValue,
             release_date,
         );
@@ -72,8 +71,8 @@ function ImageHandler () {
 }
 
 function MoreHandler () {
-    var first = film_num;
-    film_num += 24;
-    xhttp.open("GET", getBaseUrl() + "xml" + window.location.search + "&f=" + first + "&l=" + film_num, true);
+    var first = card_num;
+    card_num += 24;
+    xhttp.open("GET", getBaseUrl() + "xml" + window.location.search + "&f=" + first + "&l=" + card_num, true);
     xhttp.send();
 }
