@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>{{ .Name }}</title>
+        <link rel="stylesheet" type="text/css" href="files/info.css" />
+        <link rel="shortcut icon" type="image/png" href="files/icon.png" />
+    </head>
+    <body>
+        <header>
+            <img id="search-image" src="files/search_icon.png">
+            <input id="search-input" type="text" name="" placeholder="What would you like to watch?">
+         </header>
+         <main>
+            {{ range $idx, $card := $.Cards}}
+            <a HREF="watch?id={{ $card.Id }}">
+                <img src="media/{{ $card.Picture }}">
+                <div>
+                    <p><b>{{$card.Title}}</b></p>
+                    <p>{{$card.Text}}</p>
+                </div>
+            </a>
+            {{ end }}
+        </main>
+    </body>
+    <script type="text/javascript" src="files/info.js"></script>
+</html>

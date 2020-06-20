@@ -27,8 +27,9 @@ const (
 	MEDIA_ROOT            = "media"
 	MEDIA_FILMS_DIR       = "films"
 	MEDIA_COLLECTIONS_DIR = "collections"
-	WATCH_HTML_TEMPLATE   = "internal/watch.html"
 	RESULTS_HTML_TEMPLATE = "internal/results.html"
+	INFO_HTML_TEMPLATE    = "internal/info.html"
+	WATCH_HTML_TEMPLATE   = "internal/watch.html"
     COLLECTION_IDX       = 0
     LONELY_FILM_IDX      = 1
     COLLECTION_FILM_IDX  = 2
@@ -55,6 +56,24 @@ type ResultCard struct {
 	Title       string   `xml:"title"`
 	Text        string   `xml:"text"`
 	Picture     string   `xml:"picture"`
+}
+
+//
+// Info cards structure
+//
+type InfoCards struct {
+	Name  string
+	Cards []InfoCard
+}
+
+//
+// Info card structure
+//
+type InfoCard struct {
+	Id        string
+	Picture   string
+	Title     string
+	Text      string
 }
 
 //
@@ -336,6 +355,49 @@ func MakeResultCards(
 }
 
 //
+// Returns info cards for items with the provided index
+//
+func MakeInfoCards(
+	site_server *SiteServer,
+	item_id     string,
+) InfoCards {
+    var info_cards InfoCards
+
+    item_idx := site_server.id2idx[item_id]
+
+    if item_idx[0] == LONELY_FILM_IDX || item_idx[0] == COLLECTION_FILM_IDX {
+        film := site_server.films[item_idx[1]]
+
+        info_cards.Name = film.Title
+
+        info_cards.Cards = make([]InfoCard, 1)
+        info_cards.Cards[0] = InfoCard{
+            film.Id,
+            film.BackdropFile.Path,
+            film.Title,
+            film.Overview,
+        }
+    }
+    if item_idx[0] == COLLECTION_IDX {
+        collection := site_server.collections[item_idx[1]]
+
+        info_cards.Name = collection.Name
+
+        info_cards.Cards = make([]InfoCard, len(collection.Films))
+
+        for idx, film := range collection.Films {
+            info_cards.Cards[idx] = InfoCard{
+                film.Id,
+                film.BackdropFile.Path,
+                film.Title,
+                film.Overview,
+            }
+        }
+    }
+    return info_cards
+}
+
+//
 // Returns watch cards for items with the provided index
 //
 func MakeWatchCards(
@@ -360,7 +422,6 @@ func MakeWatchCards(
             film_file.Type,
         }
     }
-
     if item_idx[0] == COLLECTION_IDX {
         collection := site_server.collections[item_idx[1]]
 
@@ -401,21 +462,6 @@ type SiteServer struct {
     collections  []structs.CollectionData
     id2idx       map[string][2]int
     permutations map[string][][2]int
-}
-
-//
-// Handles /watch requests
-//
-func (data *SiteServer) HandleWatch(w http.ResponseWriter, r *http.Request) {
-	watch_id := r.FormValue("v")
-    log.Printf("Serving watch site for %s.\n", watch_id)
-
-    watch_cards := MakeWatchCards(data, watch_id)
-
-    t, err := template.ParseFiles(WATCH_HTML_TEMPLATE)
-    common.CheckErr(err)
-    err = t.Execute(w, watch_cards)
-    common.CheckErr(err)
 }
 
 //
@@ -473,6 +519,36 @@ func (data *SiteServer) HandleResults(w http.ResponseWriter, r *http.Request) {
 }
 
 //
+// Handles /info requests
+//
+func (data *SiteServer) HandleInfo(w http.ResponseWriter, r *http.Request) {
+	info_id := r.FormValue("id")
+    log.Printf("Serving info site for %s.\n", info_id)
+
+    info_cards := MakeInfoCards(data, info_id)
+
+    t, err := template.ParseFiles(INFO_HTML_TEMPLATE)
+    common.CheckErr(err)
+    err = t.Execute(w, info_cards)
+    common.CheckErr(err)
+}
+
+//
+// Handles /watch requests
+//
+func (data *SiteServer) HandleWatch(w http.ResponseWriter, r *http.Request) {
+	watch_id := r.FormValue("id")
+    log.Printf("Serving watch site for %s.\n", watch_id)
+
+    watch_cards := MakeWatchCards(data, watch_id)
+
+    t, err := template.ParseFiles(WATCH_HTML_TEMPLATE)
+    common.CheckErr(err)
+    err = t.Execute(w, watch_cards)
+    common.CheckErr(err)
+}
+
+//
 // Handles /xml requests
 //
 func (data *SiteServer) HandleXML(w http.ResponseWriter, r *http.Request) {
@@ -512,10 +588,12 @@ func (data *SiteServer) HandleXML(w http.ResponseWriter, r *http.Request) {
 //
 func (data *SiteServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
     switch path := r.URL.Path; path {
-    case "/watch":
-        data.HandleWatch(w, r)
     case "/results":
         data.HandleResults(w, r)
+    case "/info":
+        data.HandleInfo(w, r)
+    case "/watch":
+        data.HandleWatch(w, r)
     case "/xml":
         data.HandleXML(w, r)
     }
@@ -538,8 +616,9 @@ func main() {
 	http.HandleFunc("/", RootHandler)
 	http.Handle("/media/", file_server)
 	http.Handle("/files/", file_server)
-	http.Handle("/xml", site_server)
 	http.Handle("/results", site_server)
+	http.Handle("/info", site_server)
 	http.Handle("/watch", site_server)
+	http.Handle("/xml", site_server)
 	http.ListenAndServe(":8080", nil)
 }

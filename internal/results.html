@@ -14,9 +14,9 @@
         <main id="results">
             {{ range $idx, $card := $.Cards}}
             {{ if $card.Watchable }}
-            <a class="watchable_film_item" HREF="watch?v={{ $card.Id }}">
+            <a class="watchable_film_item" HREF="info?id={{ $card.Id }}">
             {{ else }}
-            <a class="non-watchable_film_item" HREF="watch?v={{ $card.Id }}">
+            <a class="non-watchable_film_item" HREF="info?id={{ $card.Id }}">
             {{ end }}
                 <img src="{{ $card.Picture }}">
                 <div>
