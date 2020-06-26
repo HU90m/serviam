@@ -1,20 +1,20 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"bufio"
 	"log"
 	"net/http"
 	"os"
-	"serviam/structs"
-	"serviam/common"
 	"path"
 	"path/filepath"
-	"strings"
+	"serviam/common"
+	"serviam/structs"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -38,7 +38,6 @@ const TV_GET_URL = "https://api.themoviedb.org/3/tv/"
 const TV_SEARCH_URL = "https://api.themoviedb.org/3/search/tv"
 const GENRE_URL = "https://api.themoviedb.org/3/genre/movie/list"
 const IMAGE_URL = "https://image.tmdb.org/t/p/original"
-
 
 //---------------------------------------------------------------------------
 // Functions
@@ -257,9 +256,7 @@ func MakeTMDBFilmInfoFile(
 	api_key string,
 	id int,
 	file_path string,
-) (
-	structs.TMDBMovie,
-) {
+) structs.TMDBMovie {
 	var tmdb structs.TMDBMovie
 	var blob []byte
 	var err error
@@ -269,7 +266,7 @@ func MakeTMDBFilmInfoFile(
 	resp, err := client.Get(url)
 	common.CheckErr(err)
 	if NotOK(resp) {
-		return tmdb
+		log.Fatal("Reponse not OK")
 	}
 	defer resp.Body.Close()
 	blob, err = ioutil.ReadAll(resp.Body)
@@ -302,7 +299,7 @@ func MakeTMDBCollectionInfoFile(
 	common.CheckErr(err)
 
 	collection_name := common.PosixFileName(tmdb.Name)
-	collection_path := path.Join(COLLECTION_DIR, collection_name + ".json")
+	collection_path := path.Join(COLLECTION_DIR, collection_name+".json")
 
 	if _, err := os.Stat(collection_path); err == nil {
 		log.Printf("The '%s' collection is already saved.\n", collection_name)
@@ -360,7 +357,7 @@ func main() {
 					client,
 					api_key,
 					tmdb_result.Id,
-					query + ".json",
+					query+".json",
 				)
 				if tmdb_film.BelongsToCollection.Name != "" {
 					MakeTMDBCollectionInfoFile(

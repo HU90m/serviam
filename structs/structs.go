@@ -18,71 +18,74 @@ type CollectionData struct {
 // Film Data Structure
 //
 type FilmData struct {
-	Id            string      `json:"id"`
-	Title         string      `json:"title"`
-	Tagline       string      `json:"tagline"`
-	Overview      string      `json:"overview"`
-	ReleaseDate   string      `json:"release_date"`
-	Runtime       int         `json:"runtime"`
-	PosterFile    FileData    `json:"poster_file"`
-	BackdropFile  FileData    `json:"backdrop_file"`
-	FilmFiles     []FileData  `json:"film_files"`
-	Genres        []TMDBGenre `json:"genres"`
-	TMDBId        int         `json:"tmdb_id"`
-	Budget        int         `json:"budget"`
-	Revenue       int         `json:"revenue"`
-	VoteAverage   float64     `json:"vote_average"`
-	VoteCount     int         `json:"vote_count"`
-	Popularity    float64     `json:"popularity"`
+	Id           string      `json:"id"`
+	Title        string      `json:"title"`
+	Tagline      string      `json:"tagline"`
+	Overview     string      `json:"overview"`
+	ReleaseDate  string      `json:"release_date"`
+	Runtime      int         `json:"runtime"`
+	PosterFile   FileData    `json:"poster_file"`
+	BackdropFile FileData    `json:"backdrop_file"`
+	FilmFiles    []FileData  `json:"film_files"`
+	Genres       []TMDBGenre `json:"genres"`
+	TMDBId       int         `json:"tmdb_id"`
+	Budget       int         `json:"budget"`
+	Revenue      int         `json:"revenue"`
+	VoteAverage  float64     `json:"vote_average"`
+	VoteCount    int         `json:"vote_count"`
+	Popularity   float64     `json:"popularity"`
 }
 
 //
 // Show Data Structure
 //
 type ShowData struct {
-	BackdropPath     string       `json:"backdrop_path"`
-	EpisodeRunTime   []int        `json:"episode_run_time"`
-	FirstAirDate     string       `json:"first_air_date"`
-	Genres           []TMDBGenre  `json:"genres"`
-	Id               int          `json:"id"`
+	Id               string       `json:"id"`
 	Name             string       `json:"name"`
-	NumberOfEpisodes int          `json:"number_of_episodes"`
-	NumberOfSeasons  int          `json:"number_of_seasons"`
+	FirstAirDate     string       `json:"first_air_date"`
 	Overview         string       `json:"overview"`
-	Popularity       float64      `json:"popularity"`
-	PosterPath       string       `json:"poster_path"`
+	NumberOfSeasons  int          `json:"number_of_seasons"`
+	NumberOfEpisodes int          `json:"number_of_episodes"`
+	EpisodeRunTime   []int        `json:"episode_run_time"`
+	PosterFile       FileData     `json:"poster_file"`
+	BackdropFile     FileData     `json:"backdrop_file"`
 	Seasons          []SeasonData `json:"seasons"`
+	Genres           []TMDBGenre  `json:"genres"`
 	Type             string       `json:"type"`
+	TMDBId           int          `json:"tmdb_id"`
 	VoteAverage      float64      `json:"vote_average"`
 	VoteCount        int          `json:"vote_count"`
+	Popularity       float64      `json:"popularity"`
 }
 
 //
 // Season Data Structure
 //
 type SeasonData struct {
-	AirDate      string        `json:"air_date"`
-	Episodes     []EpisodeData `json:"episodes"`
-	Name         string        `json:"name"`
-	Overview     string        `json:"overview"`
-	Id           int           `json:"id"`
-	PosterPath   string        `json:"poster_path"`
+	Id           string        `json:"id"`
 	SeasonNumber int           `json:"season_number"`
+	Name         string        `json:"name"`
+	AirDate      string        `json:"air_date"`
+	Overview     string        `json:"overview"`
+	PosterFile   FileData      `json:"poster_file"`
+	Episodes     []EpisodeData `json:"episodes"`
+	TMDBId       int           `json:"tmdb_id"`
 }
 
 //
 // Episode Data Structure
 //
 type EpisodeData struct {
-	AirDate       string      `json:"air_date"`
-	EpisodeNumber int         `json:"episode_number"`
-	Name          string      `json:"name"`
-	Overview      string      `json:"overview"`
-	Id            int         `json:"id"`
-	StillPath     string      `json:"still_path"`
-	VoteAverage   float64     `json:"vote_average"`
-	VoteCount     int         `json:"vote_count"`
-	Files         []FileData  `json:"files"`
+	Id            string     `json:"id"`
+	EpisodeNumber int        `json:"episode_number"`
+	Name          string     `json:"name"`
+	AirDate       string     `json:"air_date"`
+	Overview      string     `json:"overview"`
+	StillFile     FileData   `json:"still_file"`
+	Files         []FileData `json:"files"`
+	TMDBId        int        `json:"tmdb_id"`
+	VoteAverage   float64    `json:"vote_average"`
+	VoteCount     int        `json:"vote_count"`
 }
 
 //
@@ -93,7 +96,6 @@ type FileData struct {
 	Path string `json:"path"`
 	Type string `json:"type"`
 }
-
 
 //---------------------------------------------------------------------------
 // TMDB Structures
@@ -245,7 +247,6 @@ type TMDBGenre struct {
 	Name string `json:"name"`
 }
 
-
 //---------------------------------------------------------------------------
 // Functions
 //---------------------------------------------------------------------------
@@ -258,9 +259,7 @@ func TMDBMovieToFilmData(
 	poster_file *FileData,
 	backdrop_file *FileData,
 	film_files *[]FileData,
-) (
-	FilmData,
-) {
+) FilmData {
 	return FilmData{
 		*id,
 		tmdb_movie.Title,
@@ -289,14 +288,86 @@ func TMDBCollectionToCollectionData(
 	poster_file *FileData,
 	backdrop_file *FileData,
 	films *[]FilmData,
-) (
-	CollectionData,
-) {
+) CollectionData {
 	return CollectionData{
 		tmdb_collection.Name,
 		*poster_file,
 		*backdrop_file,
 		*films,
 		tmdb_collection.Id,
+	}
+}
+
+//
+// Converts a TMDBEpisode struct to a EpisodeData struct
+//
+func TMDBEpisodeToEpisodeData(
+	tmdb_episode *TMDBEpisode,
+	id *string,
+	still_file *FileData,
+	episode_files *[]FileData,
+) EpisodeData {
+	return EpisodeData{
+		*id,
+		tmdb_episode.EpisodeNumber,
+		tmdb_episode.Name,
+		tmdb_episode.AirDate,
+		tmdb_episode.Overview,
+		*still_file,
+		*episode_files,
+		tmdb_episode.Id,
+		tmdb_episode.VoteAverage,
+		tmdb_episode.VoteCount,
+	}
+}
+
+//
+// Converts a TMDBSeason struct to a SeasonData struct
+//
+func TMDBSeasonToSeasonData(
+	tmdb_season *TMDBSeason,
+	id *string,
+	poster_file *FileData,
+	episodes *[]EpisodeData,
+) SeasonData {
+	return SeasonData{
+		*id,
+		tmdb_season.SeasonNumber,
+		tmdb_season.Name,
+		tmdb_season.AirDate,
+		tmdb_season.Overview,
+		*poster_file,
+		*episodes,
+		tmdb_season.Id,
+	}
+}
+
+//
+// Converts a TMDBTV struct to a ShowData struct
+//
+func TMDBTVToShowData(
+	tmdb_tv *TMDBTV,
+	id *string,
+	poster_file *FileData,
+	backdrop_file *FileData,
+	seasons *[]SeasonData,
+) ShowData {
+	return ShowData{
+		*id,
+		tmdb_tv.Name,
+		tmdb_tv.FirstAirDate,
+		tmdb_tv.Overview,
+		tmdb_tv.NumberOfSeasons,
+		tmdb_tv.NumberOfEpisodes,
+		tmdb_tv.EpisodeRunTime,
+		*poster_file,
+		*backdrop_file,
+		*seasons,
+		tmdb_tv.Genres,
+		tmdb_tv.Type,
+		tmdb_tv.Id,
+		tmdb_tv.VoteAverage,
+		tmdb_tv.VoteCount,
+		tmdb_tv.Popularity,
 	}
 }

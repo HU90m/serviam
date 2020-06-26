@@ -1,18 +1,16 @@
 package common
 
 import (
-    "log"
-    "os"
-    "os/exec"
-    "regexp"
+	"log"
+	"os"
+	"os/exec"
+	"regexp"
 )
-
 
 //---------------------------------------------------------------------------
 // Shared Constants
 //---------------------------------------------------------------------------
 const INDENT = "\t"
-
 
 //---------------------------------------------------------------------------
 // Shared Functions
@@ -53,8 +51,8 @@ func CheckDir(path string) {
 // Removes characters that are not in the posix filename standard
 //
 func PosixFileName(input string) string {
-    reg := regexp.MustCompile("([^\\w.-])+")
-    return reg.ReplaceAllString(input, "")
+	reg := regexp.MustCompile("([^\\w.-])+")
+	return reg.ReplaceAllString(input, "")
 }
 
 //
@@ -82,4 +80,3 @@ func DisplayImage(image_location string) {
 	os.Stdout.Write(bytes)
 	CheckErr(err)
 }
-

@@ -2,13 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"log"
 	"os"
-	"io/ioutil"
 	"path"
 	"path/filepath"
-	"serviam/structs"
 	"serviam/common"
+	"serviam/structs"
 	"strings"
 )
 
@@ -30,13 +30,12 @@ var EXTENSIONS_TO_MOVE = []string{
 // directories
 //
 const (
-	MOVED_DIR = "moved"
-	PICTURE_DIR = "pictures"
-	COLLECTION_DIR = "collections"
-	MEDIA_FILM_DIR = "films"
+	MOVED_DIR            = "moved"
+	PICTURE_DIR          = "pictures"
+	COLLECTION_DIR       = "collections"
+	MEDIA_FILM_DIR       = "films"
 	MEDIA_COLLECTION_DIR = "collections"
 )
-
 
 //---------------------------------------------------------------------------
 // Functions
@@ -49,15 +48,13 @@ func MovePicture(
 	media_root string,
 	new_sub_dir string,
 	new_pic_name string,
-) (
-	structs.FileData,
-) {
+) structs.FileData {
 	var pic_file structs.FileData
 	var err error
 
 	pic_ext := filepath.Ext(current_pic_name)
 	current_pic_path := path.Join(PICTURE_DIR, current_pic_name)
-	new_pic_sub_path := path.Join(new_sub_dir, new_pic_name + pic_ext)
+	new_pic_sub_path := path.Join(new_sub_dir, new_pic_name+pic_ext)
 	new_pic_path := path.Join(media_root, new_pic_sub_path)
 
 	if current_pic_name != "" {
@@ -108,9 +105,7 @@ func MoveAndMakeFilmData(
 	tmdb_file string,
 	media_root string,
 	sub_dir string,
-) (
-	structs.FilmData,
-) {
+) structs.FilmData {
 	var err error
 	var film_files []structs.FileData
 	var s_film_files []string
@@ -125,7 +120,7 @@ func MoveAndMakeFilmData(
 		tmdb.PosterPath,
 		media_root,
 		sub_dir,
-		id + "__P",
+		id+"__P",
 	)
 
 	// move backdrop
@@ -133,7 +128,7 @@ func MoveAndMakeFilmData(
 		tmdb.BackdropPath,
 		media_root,
 		sub_dir,
-		id + "__B",
+		id+"__B",
 	)
 
 	// move other film files
@@ -195,8 +190,8 @@ func MoveFilm(
 	// create info file
 	blob, err = json.MarshalIndent(film_data, "", common.INDENT)
 	common.CheckErr(err)
-	film_info_file := path.Join(film_dir, id + ".json")
-	log.Printf("Making '%s'.\n", id + ".json")
+	film_info_file := path.Join(film_dir, id+".json")
+	log.Printf("Making '%s'.\n", id+".json")
 	common.SaveBlob(blob, film_info_file)
 }
 
@@ -220,7 +215,7 @@ func AddFilmToCollection(
 		-1,
 	))
 	sub_dir := path.Join(MEDIA_COLLECTION_DIR, u_name)
-	info_file := path.Join(media_root, sub_dir, u_name + ".json")
+	info_file := path.Join(media_root, sub_dir, u_name+".json")
 
 	// open collection file
 	blob, err = ioutil.ReadFile(info_file)
@@ -237,14 +232,14 @@ func AddFilmToCollection(
 	// create info file
 	blob, err = json.MarshalIndent(collection_data, "", common.INDENT)
 	common.CheckErr(err)
-	log.Printf("Adding film to '%s'.\n", u_name + ".json")
+	log.Printf("Adding film to '%s'.\n", u_name+".json")
 	common.SaveBlob(blob, info_file)
 }
 
 //
 // moves collection files to a directory and creates an info file
 //
-func MoveAndMakeCollection (
+func MoveAndMakeCollection(
 	media_root string,
 	tmdb structs.TMDBCollection,
 ) {
@@ -266,7 +261,7 @@ func MoveAndMakeCollection (
 		tmdb.PosterPath,
 		media_root,
 		sub_dir,
-		u_name + "__P",
+		u_name+"__P",
 	)
 
 	// move backdrop
@@ -274,7 +269,7 @@ func MoveAndMakeCollection (
 		tmdb.BackdropPath,
 		media_root,
 		sub_dir,
-		u_name + "__B",
+		u_name+"__B",
 	)
 
 	// creates collection info
@@ -286,10 +281,10 @@ func MoveAndMakeCollection (
 	)
 
 	// saves collection info file
-	collection_info_file := path.Join(collection_dir, u_name + ".json")
+	collection_info_file := path.Join(collection_dir, u_name+".json")
 	blob, err = json.MarshalIndent(collection_data, "", common.INDENT)
 	common.CheckErr(err)
-	log.Printf("Making '%s'.\n", u_name + ".json")
+	log.Printf("Making '%s'.\n", u_name+".json")
 	common.SaveBlob(blob, collection_info_file)
 }
 
@@ -348,7 +343,6 @@ func ProcessFilm(
 		)
 	}
 }
-
 
 //---------------------------------------------------------------------------
 // Main
