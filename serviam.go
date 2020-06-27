@@ -27,12 +27,21 @@ const (
 	MEDIA_ROOT            = "media"
 	MEDIA_FILMS_DIR       = "films"
 	MEDIA_COLLECTIONS_DIR = "collections"
+	MEDIA_SHOWS_DIR       = "shows"
 	RESULTS_HTML_TEMPLATE = "internal/results.html"
 	INFO_HTML_TEMPLATE    = "internal/info.html"
 	WATCH_HTML_TEMPLATE   = "internal/watch.html"
-	COLLECTION_IDX        = 0
-	LONELY_FILM_IDX       = 1
-	COLLECTION_FILM_IDX   = 2
+)
+
+//
+// item type indices
+//
+const (
+	COLLECTION_IDX      = 0
+	LONELY_FILM_IDX     = 1
+	COLLECTION_FILM_IDX = 2
+	SHOW_IDX            = 3
+	SEASON_IDX          = 4
 )
 
 //---------------------------------------------------------------------------
@@ -158,12 +167,11 @@ func BuildDatabase(site_server *SiteServer) {
 
 	site_server.permutations = make(map[string][][2]int)
 
+	// import lonely films
 	films_dir := path.Join(MEDIA_ROOT, MEDIA_FILMS_DIR)
 	films_dir_files := GetInfoFiles(films_dir)
-
 	for _, file := range films_dir_files {
 		var film_data structs.FilmData
-		//log.Printf("Loading '%s'\n", file)
 		blob, err = ioutil.ReadFile(file)
 		common.CheckErr(err)
 		err = json.Unmarshal(blob, &film_data)
@@ -181,12 +189,11 @@ func BuildDatabase(site_server *SiteServer) {
 		site_server.films = append(site_server.films, film_data)
 	}
 
+	// import collection films
 	collections_dir := path.Join(MEDIA_ROOT, MEDIA_COLLECTIONS_DIR)
 	collections_dir_files := GetInfoFiles(collections_dir)
-
 	for _, file := range collections_dir_files {
 		var collection_data structs.CollectionData
-		//log.Printf("Loading '%s'\n", file)
 		blob, err = ioutil.ReadFile(file)
 		common.CheckErr(err)
 		err = json.Unmarshal(blob, &collection_data)
@@ -216,20 +223,48 @@ func BuildDatabase(site_server *SiteServer) {
 			site_server.films = append(site_server.films, film_data)
 		}
 	}
+
+	// import shows
+	shows_dir := path.Join(MEDIA_ROOT, MEDIA_SHOWS_DIR)
+	shows_dir_files := GetInfoFiles(shows_dir)
+	for _, file := range shows_dir_files {
+		var show_data structs.ShowData
+		blob, err = ioutil.ReadFile(file)
+		common.CheckErr(err)
+		err = json.Unmarshal(blob, &show_data)
+		common.CheckErr(err)
+
+		show_idx := [2]int{
+			SHOW_IDX,
+			len(site_server.shows),
+		}
+		site_server.id2idx[show_data.Name] = show_idx
+		site_server.permutations["original"] = append(
+			site_server.permutations["original"],
+			show_idx,
+		)
+		site_server.shows = append(site_server.shows, show_data)
+
+		for _, season_data := range show_data.Seasons {
+			season_idx := [2]int{
+				SEASON_IDX,
+				len(site_server.seasons),
+			}
+			site_server.id2idx[season_data.Id] = season_idx
+			site_server.seasons = append(site_server.seasons, season_data)
+		}
+	}
 }
 
 //
 // Returns a films which have matched the search pattern.
 //
 func SearchItems(site_server *SiteServer, pattern string) [][2]int {
-	var film structs.FilmData
-	var collection structs.CollectionData
 	var output [][2]int
-
 	for _, value := range site_server.id2idx {
 		switch value[0] {
 		case LONELY_FILM_IDX:
-			film = site_server.films[value[1]]
+			film := site_server.films[value[1]]
 			if strings.Contains(
 				strings.ToLower(film.Title),
 				strings.ToLower(pattern),
@@ -237,17 +272,17 @@ func SearchItems(site_server *SiteServer, pattern string) [][2]int {
 				output = append(output, value)
 			}
 		case COLLECTION_IDX:
-			collection = site_server.collections[value[1]]
+			collection := site_server.collections[value[1]]
 			if strings.Contains(
 				strings.ToLower(collection.Name),
 				strings.ToLower(pattern),
 			) {
 				output = append(output, site_server.id2idx[collection.Name])
-				for _, film = range collection.Films {
+				for _, film := range collection.Films {
 					output = append(output, site_server.id2idx[film.Id])
 				}
 			} else {
-				for _, film = range collection.Films {
+				for _, film := range collection.Films {
 					if strings.Contains(
 						strings.ToLower(film.Title),
 						strings.ToLower(pattern),
@@ -255,6 +290,14 @@ func SearchItems(site_server *SiteServer, pattern string) [][2]int {
 						output = append(output, site_server.id2idx[film.Id])
 					}
 				}
+			}
+		case SHOW_IDX:
+			show := site_server.shows[value[1]]
+			if strings.Contains(
+				strings.ToLower(show.Name),
+				strings.ToLower(pattern),
+			) {
+				output = append(output, value)
 			}
 		}
 	}
@@ -330,7 +373,8 @@ func MakeResultCards(
 					"mp4",
 				)
 			}
-			if value[0] == COLLECTION_IDX {
+			switch value[0] {
+			case COLLECTION_IDX:
 				collection := site_server.collections[value[1]]
 
 				result_cards.Cards[card_idx].Id = collection.Name
@@ -340,6 +384,22 @@ func MakeResultCards(
 				if collection.PosterFile.Path != "" {
 					result_cards.Cards[card_idx].Picture =
 						MEDIA_ROOT + "/" + collection.PosterFile.Path
+				} else {
+					result_cards.Cards[card_idx].Picture =
+						"files/empty_poster.jpg"
+				}
+				result_cards.Cards[card_idx].Watchable = true
+
+			case SHOW_IDX:
+				show := site_server.shows[value[1]]
+
+				result_cards.Cards[card_idx].Id = show.Name
+				result_cards.Cards[card_idx].Title = show.Name
+				result_cards.Cards[card_idx].Text = show.FirstAirDate
+
+				if show.PosterFile.Path != "" {
+					result_cards.Cards[card_idx].Picture =
+						MEDIA_ROOT + "/" + show.PosterFile.Path
 				} else {
 					result_cards.Cards[card_idx].Picture =
 						"files/empty_poster.jpg"
@@ -376,11 +436,11 @@ func MakeInfoCards(
 			film.Overview,
 		}
 	}
-	if item_idx[0] == COLLECTION_IDX {
+	switch item_idx[0] {
+	case COLLECTION_IDX:
 		collection := site_server.collections[item_idx[1]]
 
 		info_cards.Name = collection.Name
-
 		info_cards.Cards = make([]InfoCard, len(collection.Films))
 
 		for idx, film := range collection.Films {
@@ -389,6 +449,21 @@ func MakeInfoCards(
 				film.BackdropFile.Path,
 				film.Title,
 				film.Overview,
+			}
+		}
+
+	case SHOW_IDX:
+		show := site_server.shows[item_idx[1]]
+
+		info_cards.Name = show.Name
+		info_cards.Cards = make([]InfoCard, len(show.Seasons))
+
+		for idx, season := range show.Seasons {
+			info_cards.Cards[idx] = InfoCard{
+				season.Id,
+				show.BackdropFile.Path,
+				season.Name,
+				season.Overview,
 			}
 		}
 	}
@@ -420,11 +495,11 @@ func MakeWatchCards(
 			film_file.Type,
 		}
 	}
-	if item_idx[0] == COLLECTION_IDX {
+	switch item_idx[0] {
+	case COLLECTION_IDX:
 		collection := site_server.collections[item_idx[1]]
 
 		watch_cards.Name = collection.Name
-
 		watch_cards.Cards = make([]WatchCard, len(collection.Films))
 
 		for idx, film := range collection.Films {
@@ -435,6 +510,49 @@ func MakeWatchCards(
 				film.ReleaseDate,
 				film_file.Path,
 				film_file.Type,
+			}
+		}
+
+	case SEASON_IDX:
+		season := site_server.seasons[item_idx[1]]
+
+		watch_cards.Name = season.Name
+		watch_cards.Cards = make([]WatchCard, len(season.Episodes))
+
+		for idx, episode := range season.Episodes {
+			episode_file, _ := FindFileType(episode.Files, "mp4")
+
+			watch_cards.Cards[idx] = WatchCard{
+				episode.Name,
+				episode.AirDate,
+				episode_file.Path,
+				episode_file.Type,
+			}
+		}
+
+	case SHOW_IDX:
+		num_cards := 0
+		card_idx := 0
+		show := site_server.shows[item_idx[1]]
+
+		watch_cards.Name = show.Name
+
+		for _, season := range show.Seasons {
+			num_cards += len(season.Episodes)
+		}
+		watch_cards.Cards = make([]WatchCard, num_cards)
+
+		for _, season := range show.Seasons {
+			for _, episode := range season.Episodes {
+				episode_file, _ := FindFileType(episode.Files, "mp4")
+
+				watch_cards.Cards[card_idx] = WatchCard{
+					episode.Name,
+					episode.AirDate,
+					episode_file.Path,
+					episode_file.Type,
+				}
+				card_idx++
 			}
 		}
 	}
@@ -449,15 +567,17 @@ func RootHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 //---------------------------------------------------------------------------
-// Watch Handler
+// Site Server
 //---------------------------------------------------------------------------
 //
 // Holds data for the site server
 //
 type SiteServer struct {
 	media_root   string
-	films        []structs.FilmData
 	collections  []structs.CollectionData
+	films        []structs.FilmData
+	shows        []structs.ShowData
+	seasons      []structs.SeasonData
 	id2idx       map[string][2]int
 	permutations map[string][][2]int
 }
@@ -609,6 +729,8 @@ func main() {
 
 	log.Printf("Loaded %d Collecions.\n", len(site_server.collections))
 	log.Printf("Loaded %d Films.\n", len(site_server.films))
+	log.Printf("Loaded %d Shows.\n", len(site_server.shows))
+	log.Printf("Loaded %d Seasons.\n", len(site_server.seasons))
 
 	http.HandleFunc("/", RootHandler)
 	http.Handle("/media/", file_server)
