@@ -29,8 +29,8 @@ type FilmData struct {
 	FilmFiles    []FileData  `json:"film_files"`
 	Genres       []TMDBGenre `json:"genres"`
 	TMDBId       int         `json:"tmdb_id"`
-	Budget       int         `json:"budget"`
-	Revenue      int         `json:"revenue"`
+	Budget       uint        `json:"budget"`
+	Revenue      uint        `json:"revenue"`
 	VoteAverage  float64     `json:"vote_average"`
 	VoteCount    int         `json:"vote_count"`
 	Popularity   float64     `json:"popularity"`
@@ -106,14 +106,14 @@ type FileData struct {
 type TMDBMovie struct {
 	BackdropPath        string         `json:"backdrop_path"`
 	BelongsToCollection TMDBCollection `json:"belongs_to_collection"`
-	Budget              int            `json:"budget"`
+	Budget              uint           `json:"budget"`
 	Genres              []TMDBGenre    `json:"genres"`
 	Id                  int            `json:"id"`
 	Overview            string         `json:"overview"`
 	Popularity          float64        `json:"popularity"`
 	PosterPath          string         `json:"poster_path"`
 	ReleaseDate         string         `json:"release_date"`
-	Revenue             int            `json:"revenue"`
+	Revenue             uint           `json:"revenue"`
 	Runtime             int            `json:"runtime"`
 	Tagline             string         `json:"tagline"`
 	Title               string         `json:"title"`
