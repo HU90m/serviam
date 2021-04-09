@@ -51,16 +51,16 @@ func DownloadImage(client http.Client, tmdb_img string, location string) bool {
 	defer file.Close()
 	// download image
 	resp, err := client.Get(url)
-    if NotOK(resp) {
-        return false
-    }
+	if NotOK(resp) {
+		return false
+	}
 	common.CheckErr(err)
 	defer resp.Body.Close()
 	// save image
 	size, err := io.Copy(file, resp.Body)
 	common.CheckErr(err)
 	fmt.Printf("Downloaded '%s' of size %d.\n", location, size)
-    return true
+	return true
 }
 
 //
@@ -462,20 +462,20 @@ func CreateShow(
 				if !skipping_episode {
 					// download still
 					still_name := episode_id + "__S.jpg"
-                    var still_file structs.FileData
-                    if tmdb_episode.StillPath != "" {
-                        if DownloadImage(
-                            client,
-                            tmdb_episode.StillPath,
-                            path.Join(media_root, season_dir, still_name),
-                        ) {
-                            still_file = structs.FileData{
-                                still_name,
-                                path.Join(season_dir, still_name),
-                                "jpg",
-                            }
-                        }
-                    }
+					var still_file structs.FileData
+					if tmdb_episode.StillPath != "" {
+						if DownloadImage(
+							client,
+							tmdb_episode.StillPath,
+							path.Join(media_root, season_dir, still_name),
+						) {
+							still_file = structs.FileData{
+								still_name,
+								path.Join(season_dir, still_name),
+								"jpg",
+							}
+						}
+					}
 					// add episode info to season info
 					episode := structs.TMDBEpisodeToEpisodeData(
 						&tmdb_episode,
@@ -489,60 +489,60 @@ func CreateShow(
 			// download poster
 			season_poster_name := season_id + "__P.jpg"
 			var season_poster_file structs.FileData
-            if tmdb_season.PosterPath != "" {
-                if DownloadImage(
-                    client,
-                    tmdb_season.PosterPath,
-                    path.Join(media_root, season_dir, season_poster_name),
-                ) {
-                    season_poster_file = structs.FileData{
-                        season_poster_name,
-                        path.Join(season_dir, season_poster_name),
-                        "jpg",
-                    }
-                }
-                // add season info to show info
-                seasons = append(seasons, structs.TMDBSeasonToSeasonData(
-                    &tmdb_season,
-                    &season_id,
-                    &season_poster_file,
-                    &episodes,
-                ))
-            }
+			if tmdb_season.PosterPath != "" {
+				if DownloadImage(
+					client,
+					tmdb_season.PosterPath,
+					path.Join(media_root, season_dir, season_poster_name),
+				) {
+					season_poster_file = structs.FileData{
+						season_poster_name,
+						path.Join(season_dir, season_poster_name),
+						"jpg",
+					}
+				}
+				// add season info to show info
+				seasons = append(seasons, structs.TMDBSeasonToSeasonData(
+					&tmdb_season,
+					&season_id,
+					&season_poster_file,
+					&episodes,
+				))
+			}
 		}
 	}
 	// download poster
 	show_poster_name := show_id + "__P.jpg"
-    var show_poster_file structs.FileData
-    if tmdb_show.PosterPath != "" {
-        if DownloadImage(
-            client,
-            tmdb_show.PosterPath,
-            path.Join(media_root, show_dir, show_poster_name),
-        ) {
-            show_poster_file = structs.FileData{
-                show_poster_name,
-                path.Join(show_dir, show_poster_name),
-                "jpg",
-            }
-        }
-    }
+	var show_poster_file structs.FileData
+	if tmdb_show.PosterPath != "" {
+		if DownloadImage(
+			client,
+			tmdb_show.PosterPath,
+			path.Join(media_root, show_dir, show_poster_name),
+		) {
+			show_poster_file = structs.FileData{
+				show_poster_name,
+				path.Join(show_dir, show_poster_name),
+				"jpg",
+			}
+		}
+	}
 	// download backdrop
 	show_backdrop_name := show_id + "__B.jpg"
-    var show_backdrop_file structs.FileData
-    if tmdb_show.BackdropPath != "" {
-        if DownloadImage(
-            client,
-            tmdb_show.BackdropPath,
-            path.Join(media_root, show_dir, show_backdrop_name),
-        ) {
-            show_backdrop_file = structs.FileData{
-                show_backdrop_name,
-                path.Join(show_dir, show_backdrop_name),
-                "jpg",
-            }
-        }
-    }
+	var show_backdrop_file structs.FileData
+	if tmdb_show.BackdropPath != "" {
+		if DownloadImage(
+			client,
+			tmdb_show.BackdropPath,
+			path.Join(media_root, show_dir, show_backdrop_name),
+		) {
+			show_backdrop_file = structs.FileData{
+				show_backdrop_name,
+				path.Join(show_dir, show_backdrop_name),
+				"jpg",
+			}
+		}
+	}
 	// save show info file
 	show := structs.TMDBTVToShowData(
 		&tmdb_show,
