@@ -140,8 +140,24 @@ All moved film's old data files will be placed into a directory called `moved`.
 
 ### getshow
 
-Is essentially a combined posterplucker and posterplacer script for shows.
+This script is essentially a combined posterplucker and posterplacer script for shows.
+
+If episodes of the show already exists in the output media folder,
+you should answer yes when asked whether you have that season
+and pick a directory.
+(A random directory is fine if you don't want to add additional episodes.)
+If an episode is found to already exist,
+the script will use the files already present
+and not ask you for the episode files.
 
 ```bash
 ~1/getshow/getshow $(cat ~1/misc/api_key) Videos/media/ TheBoys/
 ```
+
+
+### re-running scripts
+
+All scripts are designed so that you can stop the script (Ctrl-C)
+and run it again. The script will just pick up where it left off.
+Occationally you will have to move the files from the film or episode
+the script was on when it stopped, back to their original directories.
