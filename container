@@ -1,0 +1,17 @@
+#!/bin/sh
+media_dir="/home/hugo/repo/serviam/media"
+
+for arg in "$@"
+do
+  case $arg in
+    build)
+      docker build -t serviam .
+      ;;
+    run)
+      docker run -d --restart always \
+        -p 127.0.0.1:8042:8042 \
+        -v $media_dir:/go/src/serviam/media \
+        --name film_hugom serviam
+        ;;
+  esac
+done
