@@ -739,5 +739,5 @@ func main() {
 	http.Handle("/info", site_server)
 	http.Handle("/watch", site_server)
 	http.Handle("/xml", site_server)
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe("127.0.0.1:8042", nil)
 }
