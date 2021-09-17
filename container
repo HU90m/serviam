@@ -1,5 +1,6 @@
 #!/bin/sh
-media_dir="/home/hugo/repo/serviam/media"
+uid=1000 gid=1000
+media_dir="/mnt/NogginlessStomach/Videos/media"
 
 for arg in "$@"
 do
@@ -11,6 +12,7 @@ do
       docker run -d --restart always \
         -p 127.0.0.1:8042:8042 \
         -v $media_dir:/go/src/serviam/media \
+        --user $uid:$gid \
         --name film_hugom serviam
         ;;
   esac
