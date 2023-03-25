@@ -7,8 +7,8 @@ as well as a server for browsing and watching. These notes are made for a future
 
 To build install the standard go toolchain and run `go build`.
 
-The `posterplucker` and `getshow` script expect the sxiv image viewer program
-to be installed on the system.
+The `posterplucker` and `getshow` use `xdg-open` to open image files for viewing
+so may fail if this or an image viewer is not installed on the system.
 
 ## Issues
 

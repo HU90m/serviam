@@ -70,12 +70,12 @@ func SaveBlob(blob []byte, location string) {
 }
 
 //
-// Displays Image using sxiv
+// Displays Image using xdg-open
 //
 func DisplayImage(image_location string) {
 	var cmd *exec.Cmd
 	log.Printf("Displaying '%s'.\n", image_location)
-	cmd = exec.Command("sxiv", image_location)
+	cmd = exec.Command("xdg-open", image_location)
 	bytes, err := cmd.CombinedOutput()
 	os.Stdout.Write(bytes)
 	CheckErr(err)
